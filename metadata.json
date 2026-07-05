@@ -1,0 +1,6 @@
+{
+  "name": "Starlink Tours",
+  "description": "Premium luxury coach service offering safe, reliable, and comfortable intercity travel between Blantyre and Lilongwe.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
