@@ -14,7 +14,7 @@ export default function Footer({ onViewChange }: FooterProps) {
   };
 
   return (
-    <footer className="bg-white border-t-2 border-[#F15A24] py-20 px-4 md:py-24 text-center">
+    <footer className="bg-gray-50 border-t-2 border-black py-20 px-4 md:py-24 text-center">
       <div className="mx-auto max-w-[1200px] flex flex-col items-center">
         {/* Animated Brand & Content Container */}
         <motion.div

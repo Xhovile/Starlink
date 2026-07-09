@@ -37,14 +37,14 @@ export default function Header({ currentView, onViewChange, openBookingHistory, 
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full border-b-2 border-[#F15A24] bg-white text-ink">
+      <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-gray-50 text-ink">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           
           {/* Left: Hamburger Menu Icon */}
           <div className="flex items-center">
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-gray-50 text-navy transition-all duration-200 cursor-pointer"
+              className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-gray-200/50 text-navy transition-all duration-200 cursor-pointer"
               aria-label="Toggle menu"
             >
               <Menu className="h-6 w-6 stroke-[2]" />
@@ -66,7 +66,7 @@ export default function Header({ currentView, onViewChange, openBookingHistory, 
           <div className="flex items-center gap-3 relative">
             
             {/* Language Quick Toggle on Desktop */}
-            <div className="hidden sm:flex items-center gap-1 border border-gray-150 p-0.5 rounded-md bg-gray-50 mr-2 text-[10px]">
+            <div className="hidden sm:flex items-center gap-1 border border-gray-150 p-0.5 rounded-md bg-white mr-2 text-[10px]">
               <button
                 onClick={() => setLanguage('en')}
                 className={`px-2 py-0.5 font-bold transition-all duration-300 rounded-sm cursor-pointer ${
@@ -91,7 +91,7 @@ export default function Header({ currentView, onViewChange, openBookingHistory, 
 
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="relative flex h-10 w-10 items-center justify-center rounded-full hover:bg-gray-50 text-gray-400 hover:text-navy transition-all duration-200 cursor-pointer"
+              className="relative flex h-10 w-10 items-center justify-center rounded-full hover:bg-gray-200/50 text-gray-400 hover:text-navy transition-all duration-200 cursor-pointer"
               aria-label="Notifications"
             >
               <Bell className="h-5.5 w-5.5 stroke-[2]" />

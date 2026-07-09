@@ -15,6 +15,7 @@ import {
 import Header from './components/Header';
 import Footer from './components/Footer';
 import YavaLogo from './components/YavaLogo';
+import BottomNavbar from './components/BottomNavbar';
 import { useLanguage } from './context/LanguageContext';
 
 const Hero = lazy(() => import('./components/Hero'));
@@ -1064,57 +1065,12 @@ export default function App() {
       }} />
 
       {/* Redesigned Premium Sticky Bottom Navigation Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-150 py-3.5 px-6 shadow-xl backdrop-blur-md bg-white/95">
-        <div className="max-w-md mx-auto flex items-center justify-between">
-          <button 
-            onClick={() => {
-              setPrefilledRoute(null);
-              setPrefilledQuery(null);
-              navigateTo('home');
-            }}
-            className={`flex flex-col items-center gap-1 transition-all duration-200 cursor-pointer ${currentView === 'home' ? 'text-[#FF5A1F] scale-105' : 'text-gray-400 hover:text-navy'}`}
-          >
-            <Home className="h-5.5 w-5.5" />
-            <span className="text-[10px] font-black tracking-wider uppercase">{language === 'en' ? 'Home' : 'Kwanu'}</span>
-          </button>
-          
-          <button 
-            onClick={() => {
-              setPrefilledRoute(null);
-              setPrefilledQuery(null);
-              navigateTo('operators');
-            }}
-            className={`flex flex-col items-center gap-1 transition-all duration-200 cursor-pointer ${currentView === 'operators' ? 'text-[#FF5A1F] scale-105' : 'text-gray-400 hover:text-navy'}`}
-          >
-            <Bus className="h-5.5 w-5.5" />
-            <span className="text-[10px] font-black tracking-wider uppercase">{language === 'en' ? 'Operators' : 'Mabasi'}</span>
-          </button>
-
-          <button 
-            onClick={() => {
-              setPrefilledRoute(null);
-              setPrefilledQuery(null);
-              navigateTo('bookings');
-            }}
-            className={`flex flex-col items-center gap-1 transition-all duration-200 cursor-pointer ${currentView === 'bookings' ? 'text-[#FF5A1F] scale-105' : 'text-gray-400 hover:text-navy'}`}
-          >
-            <Ticket className="h-5.5 w-5.5" />
-            <span className="text-[10px] font-black tracking-wider uppercase">{language === 'en' ? 'Tickets' : 'Matikiti'}</span>
-          </button>
-
-          <button 
-            onClick={() => {
-              setPrefilledRoute(null);
-              setPrefilledQuery(null);
-              navigateTo('profile');
-            }}
-            className={`flex flex-col items-center gap-1 transition-all duration-200 cursor-pointer ${currentView === 'profile' ? 'text-[#FF5A1F] scale-105' : 'text-gray-400 hover:text-navy'}`}
-          >
-            <User className="h-5.5 w-5.5" />
-            <span className="text-[10px] font-black tracking-wider uppercase">{language === 'en' ? 'Profile' : 'Mbiri'}</span>
-          </button>
-        </div>
-      </div>
+      <BottomNavbar
+        currentView={currentView}
+        navigateTo={navigateTo}
+        setPrefilledRoute={setPrefilledRoute}
+        setPrefilledQuery={setPrefilledQuery}
+      />
 
       {/* Floating Action Buttons (Bottom Right) */}
       <div className="fixed bottom-20 md:bottom-6 right-6 z-45 flex flex-col gap-3.5 items-end">
