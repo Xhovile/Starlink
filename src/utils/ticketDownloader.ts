@@ -24,12 +24,12 @@ export function downloadTicket(booking: BookingRequest) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Starlink Tours - Boarding Pass [${booking.bookingRef}]</title>
+  <title>YAVA - Boarding Pass [${booking.bookingRef}]</title>
   
   <!-- Font imports mirroring application design -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Prata&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   
   <!-- Tailwind CSS CDN for styling -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -40,12 +40,12 @@ export function downloadTicket(booking: BookingRequest) {
         extend: {
           fontFamily: {
             sans: ['Inter', 'sans-serif'],
-            serif: ['Playfair Display', 'Georgia', 'serif'],
+            serif: ['Cormorant Garamond', 'Prata', 'Playfair Display', 'Georgia', 'serif'],
           },
           colors: {
             ink: '#1a1a1a',
             paper: '#fcfaf7',
-            gold: '#c5a059',
+            gold: '#e65100',
           }
         }
       }
@@ -98,7 +98,7 @@ export function downloadTicket(booking: BookingRequest) {
   <div class="max-w-4xl mx-auto mb-8 no-print">
     <div class="bg-[#1a1a1a] text-white p-4 flex flex-col sm:flex-row items-center justify-between gap-4 border border-gold/30">
       <div class="flex items-center gap-3">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c5a059" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e65100" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
           <polyline points="22 4 12 14.01 9 11.01"></polyline>
         </svg>
@@ -108,7 +108,7 @@ export function downloadTicket(booking: BookingRequest) {
         </div>
       </div>
       <div class="flex items-center gap-2 w-full sm:w-auto">
-        <button onclick="window.print()" class="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-[#c5a059] hover:bg-[#b08e4d] text-[#1a1a1a] px-4 py-2 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer">
+        <button onclick="window.print()" class="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-[#e65100] hover:bg-[#cc4700] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="6 9 6 2 18 2 18 9"></polyline>
             <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
@@ -143,7 +143,7 @@ export function downloadTicket(booking: BookingRequest) {
           </svg>
         </div>
         <div>
-          <span class="serif font-bold tracking-tight text-white block text-sm uppercase">STARLINK TOURS</span>
+          <span class="serif font-bold tracking-widest text-white block text-sm uppercase">YAVA</span>
           <span class="text-[9px] uppercase tracking-widest text-gold font-bold block">Boarding Request Pass</span>
         </div>
       </div>
@@ -270,7 +270,7 @@ export function downloadTicket(booking: BookingRequest) {
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
         </svg>
         <div>
-          <strong>Important Passenger Advisory:</strong> To guarantee reservation validity, present this boarding request pass to a Starlink representative or confirm via WhatsApp. Passengers must arrive at least 30 minutes before departure time. Standard luggage allowance is 23kg. Capped at 80km/h maximum safe speed limit on the M1 highway.
+          <strong>Important Passenger Advisory:</strong> To guarantee reservation validity, present this boarding request pass to a YAVA representative or confirm via WhatsApp. Passengers must arrive at least 30 minutes before departure time. Standard luggage allowance is 23kg. Capped at 80km/h maximum safe speed limit on the M1 highway.
         </div>
       </div>
     </div>
@@ -278,7 +278,7 @@ export function downloadTicket(booking: BookingRequest) {
   </div>
 
   <div class="text-center mt-8 no-print text-[11px] text-ink/40">
-    &copy; ${new Date().getFullYear()} Starlink Tours & Travel. Certified Premium Malawian Carrier.
+    &copy; ${new Date().getFullYear()} YAVA. Certified Premium Malawian Carrier.
   </div>
 
 </body>
@@ -289,7 +289,7 @@ export function downloadTicket(booking: BookingRequest) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `Starlink_BoardingPass_${booking.bookingRef}.html`;
+  link.download = `YAVA_BoardingPass_${booking.bookingRef}.html`;
   
   // Stop event propagation to prevent the AI Studio proxy global click listener 
   // from intercepting this download and showing a redirect/review window.

@@ -7,7 +7,7 @@ import { useLanguage } from '../context/LanguageContext';
 
 interface BookingFormProps {
   prefilledRoute?: RouteInfo | null;
-  prefilledQuery?: { departure: string; destination: string; date: string } | null;
+  prefilledQuery?: { departure: string; destination: string; date: string; passengers?: number } | null;
   prefilledRoundTrip?: boolean;
   onBookingAdded: () => void;
 }
@@ -55,6 +55,9 @@ export default function BookingForm({ prefilledRoute, prefilledQuery, prefilledR
       }
       if (prefilledQuery.date) {
         setTravelDate(prefilledQuery.date);
+      }
+      if (prefilledQuery.passengers) {
+        setPassengers(prefilledQuery.passengers);
       }
     }
   }, [prefilledRoute, prefilledQuery]);
@@ -105,13 +108,16 @@ export default function BookingForm({ prefilledRoute, prefilledQuery, prefilledR
     (r) => r.departureCity === departureCity && r.destinationCity === destinationCity
   );
 
-  const basePrice = activeRoute 
-    ? (serviceClass === 'VIP' ? activeRoute.fareVIP : activeRoute.fareStandard)
-    : (serviceClass === 'VIP' ? 45000 : 35000);
+  const standardPrice = activeRoute ? activeRoute.fareStandard : 35000;
+  const vipPrice = activeRoute ? activeRoute.fareVIP : 45000;
+  const basePrice = serviceClass === 'VIP' ? vipPrice : standardPrice;
 
   // Calculate Fare with special 20% round trip discount
   const pricePerSeat = isRoundTrip ? Math.round(basePrice * 2 * 0.8 / 100) * 100 : basePrice;
   const totalFare = pricePerSeat * passengers;
+
+  // Potential round trip price for the current class selection to show in the label
+  const potentialRoundTripPrice = Math.round(basePrice * 2 * 0.8 / 100) * 100;
 
   // Form submit
   const handleSubmit = (e: React.FormEvent) => {
@@ -127,44 +133,44 @@ export default function BookingForm({ prefilledRoute, prefilledQuery, prefilledR
 
     setSubmitting(true);
 
-    // Simulate luxury loader
-    setTimeout(() => {
-      const refNum = Math.floor(1000 + Math.random() * 9000);
-      const code = departureCity === 'Blantyre' ? 'BT' : 'LL';
-      const reference = `ST-${refNum}-${code}`;
+      // Simulate luxury loader
+      setTimeout(() => {
+        const refNum = Math.floor(1000 + Math.random() * 9000);
+        const code = departureCity === 'Blantyre' ? 'BT' : 'LL';
+        const reference = `YV-${refNum}-${code}`;
 
-      const newBooking: BookingRequest = {
-        id: `book-${Date.now()}`,
-        fullName,
-        phoneNumber,
-        email: email || undefined,
-        departureCity,
-        destinationCity,
-        travelDate,
-        passengers,
-        serviceClass,
-        isRoundTrip,
-        specialRequests: specialRequests || undefined,
-        bookingRef: reference,
-        status: 'Pending Review',
-        createdAt: new Date().toLocaleDateString('en-MW', { 
-          year: 'numeric', 
-          month: 'short', 
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        }),
-        departureTime: departureTimeChoice,
-      };
+        const newBooking: BookingRequest = {
+          id: `book-${Date.now()}`,
+          fullName,
+          phoneNumber,
+          email: email || undefined,
+          departureCity,
+          destinationCity,
+          travelDate,
+          passengers,
+          serviceClass,
+          isRoundTrip,
+          specialRequests: specialRequests || undefined,
+          bookingRef: reference,
+          status: 'Pending Review',
+          createdAt: new Date().toLocaleDateString('en-MW', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          }),
+          departureTime: departureTimeChoice,
+        };
 
-      // Save to localStorage
-      try {
-        const currentBookings = JSON.parse(localStorage.getItem('starlink_bookings') || '[]');
-        currentBookings.unshift(newBooking);
-        localStorage.setItem('starlink_bookings', JSON.stringify(currentBookings));
-      } catch (err) {
-        console.error('Failed to save booking', err);
-      }
+        // Save to localStorage
+        try {
+          const currentBookings = JSON.parse(localStorage.getItem('yava_bookings') || '[]');
+          currentBookings.unshift(newBooking);
+          localStorage.setItem('yava_bookings', JSON.stringify(currentBookings));
+        } catch (err) {
+          console.error('Failed to save booking', err);
+        }
 
       setConfirmedBooking(newBooking);
       setSubmitting(false);
@@ -174,7 +180,7 @@ export default function BookingForm({ prefilledRoute, prefilledQuery, prefilledR
 
   // Generate WhatsApp link
   const getWhatsAppLink = (booking: BookingRequest) => {
-    const text = `*STARLINK TOURS - LUXURY BOOKING REQUEST*
+    const text = `*YAVA - LUXURY BOOKING REQUEST*
 --------------------------------------------
 *Ticket Ref:* ${booking.bookingRef}
 *Passenger:* ${booking.fullName}
@@ -237,7 +243,7 @@ Please review and confirm my seat reservation! Thank you.`;
                     <Bus className="h-4.5 w-4.5" />
                   </div>
                   <div>
-                    <span className="serif font-bold tracking-tight text-white block text-sm">STARLINK TOURS</span>
+                    <span className="serif font-bold tracking-tight text-white block text-sm">YAVA</span>
                     <span className="text-[9px] uppercase tracking-widest text-gold font-bold block">
                       {language === 'en' ? 'Boarding Request Pass' : 'Pasi Lonyamukira Basi'}
                     </span>
@@ -637,7 +643,7 @@ Please review and confirm my seat reservation! Thank you.`;
                               : 'bg-white text-ink/60 border-ink-fade hover:bg-paper cursor-pointer'
                         }`}
                       >
-                        {language === 'en' ? 'Standard Luxury (35K)' : 'Luxury Tsiku Lomwe (35K)'}
+                        {language === 'en' ? `Standard Luxury (${Math.round(standardPrice / 1000)}K)` : `Luxury Tsiku Lomwe (${Math.round(standardPrice / 1000)}K)`}
                       </button>
                       <button
                         type="button"
@@ -652,7 +658,7 @@ Please review and confirm my seat reservation! Thank you.`;
                         }`}
                       >
                         <Star className="h-3 w-3" />
-                        {language === 'en' ? 'VIP Club (45K)' : 'Gulu la VIP (45K)'}
+                        {language === 'en' ? `VIP Club (${Math.round(vipPrice / 1000)}K)` : `Gulu la VIP (${Math.round(vipPrice / 1000)}K)`}
                       </button>
                     </div>
                     
@@ -665,7 +671,7 @@ Please review and confirm my seat reservation! Thank you.`;
                           className="accent-gold w-4 h-4 cursor-pointer"
                         />
                         <span className="text-[11px] font-bold uppercase tracking-widest text-gold">
-                          {t('roundTrip')} (50K)
+                          {t('roundTrip')} ({Math.round(potentialRoundTripPrice / 1000)}K)
                         </span>
                       </label>
                     </div>

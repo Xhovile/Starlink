@@ -71,8 +71,8 @@ export default function AboutSection() {
             </h2>
             <p className="text-ink/85 leading-relaxed text-xs sm:text-sm">
               {language === 'en'
-                ? "Starlink Tours is Malawi's premium intercity transport provider, established with a clear mission: to provide comfortable, ultra-safe, and highly professional coach travel between Blantyre and Lilongwe."
-                : "Starlink Tours ndi kampani yapamwamba ya mayendedwe m'Malawi yomwe idakhazikitsidwa ndi cholinga chomveka bwino: kupereka ulendo wabwino, otetezeka komanso odalirika pakati pa Blantyre ndi Lilongwe."}
+                ? "YAVA is Malawi's premium intercity transport provider, established with a clear mission: to provide comfortable, ultra-safe, and highly professional coach travel between Blantyre and Lilongwe."
+                : "YAVA ndi kampani yapamwamba ya mayendedwe m'Malawi yomwe idakhazikitsidwa ndi cholinga chomveka bwino: kupereka ulendo wabwino, otetezeka komanso odalirika pakati pa Blantyre ndi Lilongwe."}
             </p>
             <p className="text-ink/85 leading-relaxed text-xs sm:text-sm">
               {language === 'en'
@@ -160,8 +160,8 @@ export default function AboutSection() {
             </h3>
             <p className="text-ink/60 text-xs mt-2">
               {language === 'en'
-                ? 'Every seat booked on Starlink Tours comes loaded with executive features to maximize comfort.'
-                : 'Mipando yonse yosungidwa pa Starlink Tours imabwera ndi zinthu zabwino kuti mukhale ndi chitonthozo chenicheni.'}
+                ? 'Every seat booked on YAVA comes loaded with executive features to maximize comfort.'
+                : 'Mipando yonse yosungidwa pa YAVA imabwera ndi zinthu zabwino kuti mukhale ndi chitonthozo chenicheni.'}
             </p>
           </div>
 
@@ -192,7 +192,7 @@ export default function AboutSection() {
               {language === 'en' ? 'Our Pillar Principles' : 'Mfundo Yathu Yofunika kwambiri'}
             </span>
             <h3 className="serif text-2xl font-bold text-ink">
-              {language === 'en' ? 'The Foundations of Starlink' : 'Maziko a Starlink'}
+              {language === 'en' ? 'The Foundations of YAVA' : 'Maziko a YAVA'}
             </h3>
             <p className="text-ink/60 text-xs mt-1">
               {language === 'en'

@@ -3,12 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, lazy, Suspense, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Bus, ShieldCheck, Heart, Users, Star, ArrowRight, Phone, MessageSquare, 
   MapPin, Clock, Award, Sparkles, AlertCircle, RefreshCw, Zap, Coffee,
-  Wifi, Armchair, ThermometerSun, ChevronDown, ChevronUp, Calendar
+  Wifi, Armchair, ThermometerSun, ChevronDown, ChevronUp, Calendar,
+  ArrowLeftRight, User, Bell, Ticket, Plus, Minus, Search, Compass, HelpCircle, CheckSquare, Settings, ChevronRight, Home
 } from 'lucide-react';
 
 import Header from './components/Header';
@@ -64,7 +65,7 @@ export default function App() {
   const [showLanguagePrompt, setShowLanguagePrompt] = useState<boolean>(false);
 
   useEffect(() => {
-    const savedLang = localStorage.getItem('starlink_language');
+    const savedLang = localStorage.getItem('yava_language');
     if (!savedLang) {
       setShowLanguagePrompt(true);
     }
@@ -72,29 +73,32 @@ export default function App() {
 
   const [currentView, setCurrentView] = useState<string>('home');
   const [prefilledRoute, setPrefilledRoute] = useState<RouteInfo | null>(null);
-  const [prefilledQuery, setPrefilledQuery] = useState<{ departure: string; destination: string; date: string } | null>(null);
+  const [prefilledQuery, setPrefilledQuery] = useState<{ departure: string; destination: string; date: string; passengers?: number } | null>(null);
   const [prefilledRoundTrip, setPrefilledRoundTrip] = useState<boolean>(false);
   const [bookingCount, setBookingCount] = useState<number>(0);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
   const [openFeatureIndex, setOpenFeatureIndex] = useState<number | null>(0);
-  const [starlinkStandardsOpen, setStarlinkStandardsOpen] = useState<boolean>(false);
+  const [yavaStandardsOpen, setYavaStandardsOpen] = useState<boolean>(false);
   const [travelerVoicesOpen, setTravelerVoicesOpen] = useState<boolean>(false);
+  const homeDate = new Date().toISOString().split('T')[0];
+  const popularRoutesRef = useRef<HTMLDivElement>(null);
   
   const [reviews, setReviews] = useState(CUSTOMER_TESTIMONIALS);
   const [newReviewName, setNewReviewName] = useState('');
   const [newReviewText, setNewReviewText] = useState('');
 
   const [activeRoutes, setActiveRoutes] = useState<RouteInfo[]>(MAIN_ROUTES);
+  const [operatorSearchQuery, setOperatorSearchQuery] = useState('');
 
   useEffect(() => {
     const loadRoutes = () => {
       try {
-        const stored = localStorage.getItem('starlink_routes');
+        const stored = localStorage.getItem('yava_routes');
         if (stored) {
           setActiveRoutes(JSON.parse(stored));
         } else {
           setActiveRoutes(MAIN_ROUTES);
-          localStorage.setItem('starlink_routes', JSON.stringify(MAIN_ROUTES));
+          localStorage.setItem('yava_routes', JSON.stringify(MAIN_ROUTES));
         }
       } catch (err) {
         console.error('Failed to load routes in home', err);
@@ -107,7 +111,7 @@ export default function App() {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('starlink_reviews');
+      const saved = localStorage.getItem('yava_reviews');
       if (saved) {
         setReviews(JSON.parse(saved));
       }
@@ -130,6 +134,67 @@ export default function App() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Popular Routes automatic horizontal scrolling with user-scroll bypass and pause-on-interaction
+  useEffect(() => {
+    if (currentView !== 'home') return;
+    const container = popularRoutesRef.current;
+    if (!container) return;
+
+    let intervalId: NodeJS.Timeout;
+    let isUserInteracting = false;
+    let userInteractionTimeout: NodeJS.Timeout;
+
+    const handleUserInteraction = () => {
+      isUserInteracting = true;
+      clearTimeout(userInteractionTimeout);
+      // Resume auto-scrolling after 8 seconds of no user interaction
+      userInteractionTimeout = setTimeout(() => {
+        isUserInteracting = false;
+      }, 8000);
+    };
+
+    container.addEventListener('touchstart', handleUserInteraction, { passive: true });
+    container.addEventListener('mousedown', handleUserInteraction);
+    container.addEventListener('wheel', handleUserInteraction, { passive: true });
+
+    const autoScroll = () => {
+      if (isUserInteracting) return;
+
+      const scrollWidth = container.scrollWidth;
+      const clientWidth = container.clientWidth;
+      const maxScrollLeft = scrollWidth - clientWidth;
+      
+      if (maxScrollLeft <= 0) return;
+
+      // Find card width (first child width + gap, defaulting to 336px if first child isn't rendered yet)
+      const firstChild = container.children[0] as HTMLElement;
+      const scrollStep = firstChild ? firstChild.clientWidth + 16 : 336;
+
+      let targetScrollLeft = container.scrollLeft + scrollStep;
+
+      // If we are close to the end, wrap smoothly back to the beginning
+      if (targetScrollLeft >= maxScrollLeft + 5) {
+        targetScrollLeft = 0;
+      }
+
+      container.scrollTo({
+        left: targetScrollLeft,
+        behavior: 'smooth'
+      });
+    };
+
+    // Auto scroll every 3.5 seconds
+    intervalId = setInterval(autoScroll, 3500);
+
+    return () => {
+      clearInterval(intervalId);
+      clearTimeout(userInteractionTimeout);
+      container.removeEventListener('touchstart', handleUserInteraction);
+      container.removeEventListener('mousedown', handleUserInteraction);
+      container.removeEventListener('wheel', handleUserInteraction);
+    };
+  }, [currentView]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -155,7 +220,7 @@ export default function App() {
     setNewReviewName('');
     
     try {
-      localStorage.setItem('starlink_reviews', JSON.stringify(updatedReviews));
+      localStorage.setItem('yava_reviews', JSON.stringify(updatedReviews));
     } catch (e) {
       console.error('Failed to save review', e);
     }
@@ -191,7 +256,7 @@ export default function App() {
   // Sync Booking Count on Load and after updates
   const syncBookingCount = () => {
     try {
-      const current = JSON.parse(localStorage.getItem('starlink_bookings') || '[]');
+      const current = JSON.parse(localStorage.getItem('yava_bookings') || '[]');
       setBookingCount(current.length);
       setRefreshTrigger(prev => prev + 1);
     } catch (err) {
@@ -205,7 +270,7 @@ export default function App() {
     return () => window.removeEventListener('storage', syncBookingCount);
   }, []);
 
-  const handleNavigateToBooking = (queryPrefill?: { departure: string; destination: string; date: string }, isRoundTrip: boolean = false) => {
+  const handleNavigateToBooking = (queryPrefill?: { departure: string; destination: string; date: string; passengers?: number }, isRoundTrip: boolean = false) => {
     setPrefilledRoute(null);
     if (queryPrefill) {
       setPrefilledQuery(queryPrefill);
@@ -223,19 +288,20 @@ export default function App() {
     navigateTo('book');
   };
 
+  const filteredRoutes = activeRoutes.filter((route) => {
+    if (!operatorSearchQuery) return true;
+    const query = operatorSearchQuery.toLowerCase();
+    return (
+      route.departureCity.toLowerCase().includes(query) ||
+      route.destinationCity.toLowerCase().includes(query) ||
+      route.serviceType.toLowerCase().includes(query) ||
+      route.pickupLocation.toLowerCase().includes(query)
+    );
+  });
+
   return (
     <div className="flex flex-col min-h-screen bg-paper text-ink selection:bg-gold selection:text-white">
       
-      {/* Top Banner Notice */}
-      <div className="bg-ink text-paper border-b border-ink-fade py-2.5 px-4 text-center text-[10px] font-bold uppercase tracking-[0.2em] relative z-50">
-        <span className="flex items-center justify-center gap-1.5 flex-wrap">
-          <span className="text-gold">&bull;</span>
-          <span>{language === 'en' ? 'Daily Departures Blantyre ⇄ Lilongwe' : 'Ulendowu Tsiku Lililonse Blantyre ⇄ Lilongwe'}</span>
-          <span className="text-gold">&bull;</span>
-          <span className="text-gold">{language === 'en' ? 'Executive VIP Fare Promotion Active' : 'Zotsatsa za VIP Exec Ndizololeka Tsopano'}</span>
-        </span>
-      </div>
-
       {/* Persistent Navigation Header */}
       <Header 
         currentView={currentView} 
@@ -260,356 +326,574 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
+              className="pb-24"
             >
               {/* Hero Banner Section */}
               <Suspense fallback={<LoadingFallback />}>
                 <Hero 
-                  onNavigateToBooking={handleNavigateToBooking}
-                  onNavigateToSchedule={() => navigateTo('routes')}
+                  onNavigateToBooking={(query) => {
+                    handleNavigateToBooking(query);
+                  }}
+                  onNavigateToSchedule={() => navigateTo('operators')}
                 />
               </Suspense>
 
-              {/* Home Main Sections on Dodger Blue Background */}
-              <div className="bg-[#1e90ff] text-ink border-t border-ink-fade">
-                
-                {/* Featured Routes Cards */}
-                <section className="py-16 bg-transparent border-b border-ink-fade">
-                  <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-12">
-                      <div className="max-w-2xl text-left">
-                        <span className="text-xs font-bold uppercase tracking-[0.2em] text-black">Featured Route Rates</span>
-                        <h2 className="serif text-3xl sm:text-4xl font-bold text-white mt-2 tracking-tight">
-                          Daily Direct Scheduled Departures
-                        </h2>
+              {/* 4. Popular Routes */}
+              <section className="py-10 bg-white">
+                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-lg font-black uppercase tracking-wider text-navy">
+                      {language === 'en' ? 'Popular Routes' : 'Maulendo Ambiri'}
+                    </h2>
+                    <button
+                      onClick={() => navigateTo('operators')}
+                      className="text-xs font-bold text-[#FF5A1F] hover:underline flex items-center gap-1 transition-all cursor-pointer"
+                    >
+                      <span>{language === 'en' ? 'Browse Operators' : 'Onani mabasi'}</span>
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {/* Horizontal Scroll Grid of Route Cards */}
+                  <div 
+                    ref={popularRoutesRef}
+                    className="flex gap-4 overflow-x-auto pb-4 pt-1 snap-x scrollbar-thin scrollbar-thumb-gray-200"
+                  >
+                    <div 
+                      onClick={() => handleNavigateToBooking({ departure: 'Lilongwe', destination: 'Blantyre', date: homeDate, passengers: 1 })}
+                      className="min-w-[280px] sm:min-w-[320px] bg-gray-50 hover:bg-[#062A73]/5 border border-gray-100 rounded-2xl p-5 shrink-0 snap-start cursor-pointer transition-all duration-200"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-[9px] uppercase tracking-wider font-black px-2 py-0.5 rounded-full bg-[#062A73]/10 text-[#062A73]">Daily</span>
+                        <span className="text-xs font-bold text-[#FF5A1F]">{language === 'en' ? 'From' : 'Kuyambira'} MK35,000</span>
+                      </div>
+                      <h3 className="text-base font-bold text-[#062A73] flex items-center gap-2">
+                        <span>Lilongwe</span>
+                        <ArrowRight className="h-4 w-4 text-[#FF5A1F]" />
+                        <span>Blantyre</span>
+                      </h3>
+                      <p className="text-[11px] text-gray-500 mt-2 flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5" />
+                        <span>4.5 Hours &bull; Executive Cabin</span>
+                      </p>
+                    </div>
+
+                    <div 
+                      onClick={() => handleNavigateToBooking({ departure: 'Blantyre', destination: 'Lilongwe', date: homeDate, passengers: 1 })}
+                      className="min-w-[280px] sm:min-w-[320px] bg-gray-50 hover:bg-[#062A73]/5 border border-gray-100 rounded-2xl p-5 shrink-0 snap-start cursor-pointer transition-all duration-200"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-[9px] uppercase tracking-wider font-black px-2 py-0.5 rounded-full bg-[#062A73]/10 text-[#062A73]">Daily</span>
+                        <span className="text-xs font-bold text-[#FF5A1F]">{language === 'en' ? 'From' : 'Kuyambira'} MK35,000</span>
+                      </div>
+                      <h3 className="text-base font-bold text-[#062A73] flex items-center gap-2">
+                        <span>Blantyre</span>
+                        <ArrowRight className="h-4 w-4 text-[#FF5A1F]" />
+                        <span>Lilongwe</span>
+                      </h3>
+                      <p className="text-[11px] text-gray-500 mt-2 flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5" />
+                        <span>4.5 Hours &bull; Executive Cabin</span>
+                      </p>
+                    </div>
+
+                    <div 
+                      onClick={() => handleNavigateToBooking({ departure: 'Lilongwe', destination: 'Blantyre', date: homeDate, passengers: 1 })}
+                      className="min-w-[280px] sm:min-w-[320px] bg-gray-50 hover:bg-[#062A73]/5 border border-gray-100 rounded-2xl p-5 shrink-0 snap-start cursor-pointer transition-all duration-200"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-[9px] uppercase tracking-wider font-black px-2 py-0.5 rounded-full bg-orange-100 text-[#FF5A1F]">VIP Promo</span>
+                        <span className="text-xs font-bold text-[#FF5A1F]">From MK45,000</span>
+                      </div>
+                      <h3 className="text-base font-bold text-[#062A73] flex items-center gap-2">
+                        <span>Lilongwe</span>
+                        <ArrowRight className="h-4 w-4 text-[#FF5A1F]" />
+                        <span>Blantyre</span>
+                      </h3>
+                      <p className="text-[11px] text-gray-500 mt-2 flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5" />
+                        <span>4.5 Hours &bull; VIP Club Class</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* 5. Travel Today */}
+              <section className="py-8 bg-gray-50">
+                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                  <div className="mb-5 text-left">
+                    <h2 className="text-lg font-black uppercase tracking-wider text-navy">
+                      {language === 'en' ? 'Travel Today' : 'Yendani Lero'}
+                    </h2>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {language === 'en' ? 'Quick departures with immediate seats confirmation' : 'Zokwerera mwachangu ndi chitsimikizo cha mipando yomweyo'}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Departure Card 1 */}
+                    <div className="bg-white rounded-2xl border border-gray-150 p-5 flex items-center justify-between shadow-sm">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-orange-100 text-[#FF5A1F]">Starlink</span>
+                          <span className="text-xs font-bold text-[#062A73]">07:30 AM</span>
+                        </div>
+                        <h3 className="text-sm font-bold text-navy flex items-center gap-1.5">
+                          <span>Lilongwe</span>
+                          <ArrowRight className="h-3 w-3 text-gray-400" />
+                          <span>Blantyre</span>
+                        </h3>
+                        <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                          <span className="text-[#FF5A1F] font-bold">3 Seats left</span>
+                          <span>&bull; Standard Luxury</span>
+                        </div>
                       </div>
                       <button
-                        onClick={() => navigateTo('routes')}
-                        className="text-black hover:text-white text-xs font-bold uppercase tracking-widest flex items-center gap-1 shrink-0 transition-colors cursor-pointer"
-                        id="explore-routes-nav-btn"
+                        onClick={() => handleNavigateToBooking({ departure: 'Lilongwe', destination: 'Blantyre', date: new Date().toISOString().split('T')[0], passengers: 1 })}
+                        className="bg-[#062A73] hover:bg-[#FF5A1F] text-white px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer"
                       >
-                        <span>Explore all route timetables</span>
-                        <ArrowRight className="h-3 w-3" />
+                        {language === 'en' ? 'Book' : 'Kwera'}
                       </button>
                     </div>
 
-                    {/* Routes Quick Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      {activeRoutes.slice(0, 2).map((route) => (
-                        <div 
-                          key={route.id}
-                          className="bg-[#B5C7EB] border border-gold/30 hover:border-gold rounded-md p-8 transition-all relative overflow-hidden flex flex-col justify-between shadow-lg text-ink"
+                    {/* Departure Card 2 */}
+                    <div className="bg-white rounded-2xl border border-gray-150 p-5 flex items-center justify-between shadow-sm">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-orange-100 text-[#FF5A1F]">Starlink</span>
+                          <span className="text-xs font-bold text-[#062A73]">02:00 PM</span>
+                        </div>
+                        <h3 className="text-sm font-bold text-navy flex items-center gap-1.5">
+                          <span>Blantyre</span>
+                          <ArrowRight className="h-3 w-3 text-gray-400" />
+                          <span>Lilongwe</span>
+                        </h3>
+                        <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                          <span className="text-emerald-600 font-bold">12 Seats left</span>
+                          <span>&bull; VIP Club Class</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleNavigateToBooking({ departure: 'Blantyre', destination: 'Lilongwe', date: new Date().toISOString().split('T')[0], passengers: 1 })}
+                        className="bg-[#062A73] hover:bg-[#FF5A1F] text-white px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer"
+                      >
+                        {language === 'en' ? 'Book' : 'Kwera'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* 6. Featured Operators Section */}
+              <section className="py-10 bg-white">
+                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                  <div className="mb-6 text-left">
+                    <h2 className="text-lg font-black uppercase tracking-wider text-navy">
+                      {language === 'en' ? 'Featured Operators' : 'Makampani a Mabasi'}
+                    </h2>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {language === 'en' ? 'We partner with the safest, certified intercity fleets' : 'Timagwira ntchito ndi mabasi otetezeka komanso ovomerezeka'}
+                    </p>
+                  </div>
+
+                  {/* Two Cards per Row Layout */}
+                  <div className="grid grid-cols-2 gap-4">
+                    
+                    {/* Starlink Card */}
+                    <div 
+                      onClick={() => navigateTo('operators')}
+                      className="bg-white border border-gray-100 rounded-2xl p-4 text-left shadow-sm hover:border-[#FF5A1F]/30 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="h-10 w-10 bg-[#062A73] text-white rounded-xl flex items-center justify-center font-bold text-sm mb-3 shadow-sm">
+                          SL
+                        </div>
+                        <h3 className="text-xs sm:text-sm font-black text-navy leading-tight">Starlink Tours</h3>
+                        <span className="text-[10px] text-gray-400 block mt-1">18 Routes Available</span>
+                      </div>
+                      <div className="flex items-center justify-between mt-4 pt-2 border-t border-gray-50">
+                        <div className="flex items-center text-amber-500 text-[10px]">
+                          ★ 5.0
+                        </div>
+                        <span className="text-[10px] font-bold text-[#FF5A1F] flex items-center gap-0.5">
+                          <span>View</span>
+                          <ChevronRight className="h-3 w-3" />
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* AXA Card */}
+                    <div 
+                      onClick={() => alert('AXA Coaches integration is coming soon in Phase 2!')}
+                      className="bg-white border border-gray-100 rounded-2xl p-4 text-left shadow-sm hover:border-[#FF5A1F]/30 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group"
+                    >
+                      <div>
+                        <div className="h-10 w-10 bg-gray-100 text-gray-400 rounded-xl flex items-center justify-center font-bold text-sm mb-3">
+                          AX
+                        </div>
+                        <h3 className="text-xs sm:text-sm font-black text-gray-400 leading-tight">AXA Coaches</h3>
+                        <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-gray-50 text-gray-400 inline-block mt-1">Coming Soon</span>
+                      </div>
+                      <div className="mt-4 pt-2 border-t border-gray-50">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            alert('You will be notified once AXA Coaches starts booking!');
+                          }}
+                          className="w-full py-1.5 bg-gray-50 hover:bg-[#FF5A1F] hover:text-white text-gray-500 text-[9px] font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
                         >
-                          <div className="absolute top-0 right-0 bg-gold text-neutral-900 font-bold text-[9px] tracking-widest uppercase px-4 py-2">
-                            {route.serviceType}
-                          </div>
+                          Notify Me
+                        </button>
+                      </div>
+                    </div>
 
-                          <div className="space-y-6">
-                            <div className="flex items-center justify-between gap-2 pt-4">
-                              <div>
-                                <span className="text-[9px] uppercase font-bold tracking-widest text-ink/50 block">Departing</span>
-                                <span className="serif text-xl font-bold text-ink">{route.departureCity}</span>
-                                <span className="text-[11px] text-ink/70 block">Wenela Terminal</span>
-                              </div>
-                              <div className="flex flex-col items-center shrink-0">
-                                <Bus className="h-4 w-4 text-gold" />
-                                <div className="h-[1px] w-12 sm:w-20 bg-ink-fade my-1.5"></div>
-                                <span className="text-[9px] text-ink/50 uppercase tracking-widest font-bold">{route.duration}</span>
-                              </div>
-                              <div className="text-right">
-                                <span className="text-[9px] uppercase font-bold tracking-widest text-ink/50 block">Arriving</span>
-                                <span className="serif text-xl font-bold text-ink">{route.destinationCity}</span>
-                                <span className="text-[11px] text-ink/70 block">Area 3 Gateway</span>
-                              </div>
+                    {/* Kwezy Card */}
+                    <div 
+                      onClick={() => alert('Kwezy Bus Services integration is coming soon in Phase 2!')}
+                      className="bg-white border border-gray-100 rounded-2xl p-4 text-left shadow-sm hover:border-[#FF5A1F]/30 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="h-10 w-10 bg-gray-100 text-gray-400 rounded-xl flex items-center justify-center font-bold text-sm mb-3">
+                          KZ
+                        </div>
+                        <h3 className="text-xs sm:text-sm font-black text-gray-400 leading-tight">Kwezy Bus</h3>
+                        <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-gray-50 text-gray-400 inline-block mt-1">Coming Soon</span>
+                      </div>
+                      <div className="mt-4 pt-2 border-t border-gray-50">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            alert('You will be notified once Kwezy Bus Services starts booking!');
+                          }}
+                          className="w-full py-1.5 bg-gray-50 hover:bg-[#FF5A1F] hover:text-white text-gray-500 text-[9px] font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
+                        >
+                          Notify Me
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Sososo Card */}
+                    <div 
+                      className="bg-white border border-gray-100 rounded-2xl p-4 text-left shadow-sm flex flex-col justify-between opacity-80"
+                    >
+                      <div>
+                        <div className="h-10 w-10 bg-gray-100 text-gray-400 rounded-xl flex items-center justify-center font-bold text-sm mb-3">
+                          SS
+                        </div>
+                        <h3 className="text-xs sm:text-sm font-black text-gray-400 leading-tight">Sososo Coaches</h3>
+                        <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-gray-50 text-gray-400 inline-block mt-1">Coming Soon</span>
+                      </div>
+                      <div className="mt-4 pt-2 border-t border-gray-50">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            alert('You will be notified once Sososo Coaches starts booking!');
+                          }}
+                          className="w-full py-1.5 bg-gray-50 hover:bg-[#FF5A1F] hover:text-white text-gray-500 text-[9px] font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
+                        >
+                          Notify Me
+                        </button>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              </section>
+
+              {/* 7. Why YAVA? Section */}
+              <section className="py-12 bg-gray-50">
+                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
+                  <h2 className="text-lg font-black uppercase tracking-wider text-navy mb-8">
+                    {language === 'en' ? 'Why Travel With YAVA?' : 'Chifukwa Chiyani Musankhe YAVA?'}
+                  </h2>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    
+                    {/* Secure Booking */}
+                    <div className="flex flex-col items-center space-y-3">
+                      <div className="h-16 w-16 bg-white border border-gray-100 shadow-sm rounded-full flex items-center justify-center text-[#062A73]">
+                        <ShieldCheck className="h-7 w-7 stroke-[1.5]" />
+                      </div>
+                      <h3 className="text-xs font-bold text-navy uppercase tracking-wider">Secure Booking</h3>
+                    </div>
+
+                    {/* Multiple Operators */}
+                    <div className="flex flex-col items-center space-y-3">
+                      <div className="h-16 w-16 bg-white border border-gray-100 shadow-sm rounded-full flex items-center justify-center text-[#062A73]">
+                        <Bus className="h-7 w-7 stroke-[1.5]" />
+                      </div>
+                      <h3 className="text-xs font-bold text-navy uppercase tracking-wider">Multiple Operators</h3>
+                    </div>
+
+                    {/* Instant Tickets */}
+                    <div className="flex flex-col items-center space-y-3">
+                      <div className="h-16 w-16 bg-white border border-gray-100 shadow-sm rounded-full flex items-center justify-center text-[#062A73]">
+                        <Ticket className="h-7 w-7 stroke-[1.5]" />
+                      </div>
+                      <h3 className="text-xs font-bold text-navy uppercase tracking-wider">Instant Tickets</h3>
+                    </div>
+
+                    {/* 24/7 Support */}
+                    <div className="flex flex-col items-center space-y-3">
+                      <div className="h-16 w-16 bg-white border border-gray-100 shadow-sm rounded-full flex items-center justify-center text-[#062A73]">
+                        <Phone className="h-7 w-7 stroke-[1.5]" />
+                      </div>
+                      <h3 className="text-xs font-bold text-navy uppercase tracking-wider">24/7 Support</h3>
+                    </div>
+
+                  </div>
+                </div>
+              </section>
+
+              {/* Instant WhatsApp Support Widget */}
+              <section className="py-6 px-4 max-w-7xl mx-auto">
+                <div className="bg-emerald-50 rounded-2xl border border-emerald-100 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="text-center sm:text-left space-y-1">
+                    <h3 className="text-sm font-black text-emerald-950 uppercase tracking-wider flex items-center justify-center sm:justify-start gap-2">
+                      <MessageSquare className="h-4 w-4 fill-emerald-800 text-emerald-800" />
+                      <span>WhatsApp Reservation</span>
+                    </h3>
+                    <p className="text-xs text-emerald-800">
+                      {language === 'en' ? 'Need helper boarding? Chat directly with our dispatch Desk.' : 'Mukufuna thandizo? Lankhulani nafe pa WhatsApp nthawi yomweyo.'}
+                    </p>
+                  </div>
+                  <a
+                    href="https://wa.me/265995446426"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all shadow-md shadow-emerald-600/10"
+                  >
+                    Chat Desk
+                  </a>
+                </div>
+              </section>
+
+            </motion.div>
+          )}
+
+          {currentView === 'operators' && (
+            <motion.div
+              key="operators"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="pb-24 px-4 pt-6 max-w-4xl mx-auto text-left"
+            >
+              <div className="mb-6">
+                <h1 className="serif text-3xl font-black text-[#062A73]">Bus Operators</h1>
+                <p className="text-xs text-gray-500 mt-1">Browse active executive carrier fleets and select routes schedule to book</p>
+                
+                {/* Modern Elegant Search Bar */}
+                <div className="relative mt-4">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
+                    <Search className="h-4 w-4 text-gray-400" />
+                  </span>
+                  <input
+                    type="text"
+                    value={operatorSearchQuery}
+                    onChange={(e) => setOperatorSearchQuery(e.target.value)}
+                    placeholder={language === 'en' ? "Search departures, cities or service type (e.g., Blantyre, VIP)..." : "Fufuzani kumene mukupita kapena mtundu wa basi..."}
+                    className="w-full bg-white border border-gray-150 rounded-2xl py-3.5 pl-10 pr-10 text-xs text-[#062A73] placeholder-gray-400 focus:outline-none focus:border-[#FF5A1F] focus:ring-1 focus:ring-[#FF5A1F] shadow-sm transition-all"
+                  />
+                  {operatorSearchQuery && (
+                    <button
+                      onClick={() => setOperatorSearchQuery('')}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 hover:text-navy cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Starlink Tours Active Profile */}
+              <div className="bg-white border border-gray-150 rounded-2xl overflow-hidden shadow-sm mb-6">
+                <div className="h-32 bg-[#062A73] p-6 flex flex-col justify-end text-white relative">
+                  <div className="absolute top-4 right-4 bg-[#FF5A1F] text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                    Fully Integrated
+                  </div>
+                  <h2 className="serif text-2xl font-bold">Starlink Tours</h2>
+                  <p className="text-xs text-white/80">Malawi&apos;s Premium Luxury Highway Cruiser</p>
+                </div>
+                <div className="p-6 space-y-4">
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    Starlink Tours provides reliable executive intercity highway transports. Certified speed governors capped strictly at 80km/h, expert long-distance drivers, VIP leather recliners, onboard restrooms, USB chargers, and complimentary satellite internet.
+                  </p>
+
+                  <h3 className="text-xs font-black uppercase tracking-wider text-[#062A73] border-b border-gray-100 pb-2">
+                    Available Departure Timetables:
+                  </h3>
+
+                  <div className="space-y-3">
+                    {filteredRoutes.length > 0 ? (
+                      filteredRoutes.map((route) => (
+                        <div key={route.id} className="border border-gray-100 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-gray-200 transition-all">
+                          <div className="space-y-1">
+                            <span className="text-[9px] uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-[#062A73]/15 text-[#062A73]">
+                              {route.serviceType}
+                            </span>
+                            <h4 className="text-sm font-bold text-navy flex items-center gap-1.5">
+                              <span>{route.departureCity}</span>
+                              <ArrowRight className="h-3.5 w-3.5 text-[#FF5A1F]" />
+                              <span>{route.destinationCity}</span>
+                            </h4>
+                            <div className="flex items-center gap-3 text-[10px] text-gray-500">
+                              <span>Departure: {route.departureTime}</span>
+                              <span>&bull;</span>
+                              <span>Pickup: {route.pickupLocation.split(',')[0]}</span>
                             </div>
-
-                            <div className="grid grid-cols-2 gap-4 text-xs bg-paper p-4 border border-ink-fade">
-                              <div>
-                                <strong className="text-ink/50 block uppercase tracking-wider text-[9px] font-bold">Standard Class</strong>
-                                <span className="serif text-lg font-bold text-ink">MWK {route.fareStandard.toLocaleString()}</span>
-                              </div>
-                              <div>
-                                <strong className="text-ink/50 block uppercase tracking-wider text-[9px] font-bold">VIP Exec Class</strong>
-                                <span className="serif text-lg font-bold text-gold">MWK {route.fareVIP.toLocaleString()}</span>
-                              </div>
-                            </div>
                           </div>
-
-                          <div className="flex gap-3 mt-8 border-t border-ink-fade pt-4">
+                          <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-3 sm:pt-0 border-gray-50">
+                            <div>
+                              <span className="text-[10px] text-gray-400 block text-left sm:text-right">Standard Cabin</span>
+                              <span className="text-sm font-black text-[#062A73]">MK{route.fareStandard.toLocaleString()}</span>
+                            </div>
                             <button
                               onClick={() => handleSelectRouteFromSchedule(route)}
-                              className="w-full py-3 bg-[#0b1d3a] hover:bg-gold text-white text-xs font-bold uppercase tracking-widest transition-all duration-300 text-center cursor-pointer"
+                              className="bg-[#FF5A1F] hover:bg-[#e04f1a] text-white px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
                             >
-                              Reserve Seats
+                              Book Seat
                             </button>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                </section>                {/* Latest Promotions */}
-                <section className="py-16 bg-transparent border-b border-ink-fade">
-                   <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                     <div className="bg-[#B5C7EB] text-ink border border-gold/30 rounded-md p-8 sm:p-12 relative overflow-hidden shadow-lg">
-                       <div className="absolute top-0 right-0 p-8 opacity-5">
-                         <Bus className="h-64 w-64 text-ink" />
-                       </div>
-
-                       <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-                         <div className="lg:col-span-8 space-y-4 text-left">
-                           <span className="text-xs font-bold uppercase tracking-[0.2em] text-gold border border-gold/30 px-3 py-1 inline-block">
-                             Exclusive Phase 1 Offer
-                           </span>
-                           <h3 className="serif text-3xl sm:text-4xl font-bold tracking-tight text-ink">
-                             Round-Trip Saver Discount
-                           </h3>
-                           <p className="text-xs sm:text-sm text-ink/80 leading-relaxed max-w-xl">
-                             Need to travel both ways? Secure both departure and return booking requests today and receive a <strong className="text-gold">10% total fare rebate</strong> upon boarding verification at our office. Let our dispatch desk know during your confirmation!
-                           </p>
-                         </div>
-                         <div className="lg:col-span-4 flex justify-start lg:justify-end shrink-0">
-                           <button
-                             onClick={() => handleNavigateToBooking(undefined, true)}
-                             className="px-6 py-3.5 bg-[#0b1d3a] hover:bg-gold text-white text-xs font-bold uppercase tracking-widest transition-all duration-300 cursor-pointer"
-                           >
-                             Claim Saver Promo
-                           </button>
-                         </div>
-                       </div>
-                     </div>
-                   </div>
-                 </section>
-
-                {/* Starlink Standards Section (Accordioned & Placed Below Promotions) */}
-                <section className="py-8 bg-transparent border-b border-ink-fade">
-                  <div className="mx-auto max-w-4xl px-4 sm:px-6">
-                    <div 
-                      onClick={() => setStarlinkStandardsOpen(!starlinkStandardsOpen)}
-                      className={`cursor-pointer border p-6 sm:p-10 transition-all duration-300 relative overflow-hidden select-none group ${
-                        starlinkStandardsOpen ? 'bg-[#faf7f2] border-gold shadow-lg text-ink' : 'bg-[#faf7f2] border-gold/30 hover:border-gold text-ink'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-6">
-                        <div className="space-y-2.5 text-left">
-                          <span className="text-xs font-bold uppercase tracking-[0.2em] text-gold block">
-                            Starlink Standards
-                          </span>
-                          <h2 className="serif text-2xl sm:text-3xl font-bold text-ink tracking-tight">
-                            WHY TRAVELERS CHOOSE STARLINK
-                          </h2>
-                          <p className="text-ink/70 text-xs leading-relaxed max-w-xl mt-1">
-                            We deliver pristine comfort, absolute timing integrity, and safety compliance. Click to expand and view our standard executive amenities.
-                          </p>
-                        </div>
-                        <motion.div
-                          animate={{ rotate: starlinkStandardsOpen ? 180 : 0 }}
-                          transition={{ duration: 0.2 }}
-                          className={`p-2 shrink-0 transition-colors ${starlinkStandardsOpen ? 'text-gold' : 'text-ink/30 group-hover:text-gold'}`}
-                        >
-                          <ChevronDown className="h-6 w-6" />
-                        </motion.div>
-                      </div>
-
-                      <AnimatePresence initial={false}>
-                        {starlinkStandardsOpen && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.25, ease: 'easeInOut' }}
-                            className="overflow-hidden"
-                            onClick={(e) => e.stopPropagation()} // Prevent closing when interacting with inner items
-                          >
-                            <div className="mt-8 border-t border-dashed border-ink-fade pt-8 space-y-4">
-                              {FLEET_FEATURES.map((feature, i) => {
-                                const isOpen = openFeatureIndex === i;
-                                return (
-                                  <div 
-                                    key={i}
-                                    className={`border rounded-none transition-all duration-300 overflow-hidden ${
-                                      isOpen 
-                                        ? 'bg-[#faf7f2] border-gold shadow-sm text-ink' 
-                                        : 'bg-[#faf7f2] border-ink-fade hover:border-gold/40 text-ink'
-                                    }`}
-                                  >
-                                    {/* Accordion Header */}
-                                    <div 
-                                      onClick={() => setOpenFeatureIndex(isOpen ? null : i)}
-                                      className="flex items-center justify-between gap-4 cursor-pointer py-4.5 px-6 select-none group/item transition-colors hover:bg-neutral-50"
-                                    >
-                                      <div className="flex items-center gap-4">
-                                        <span className="serif text-lg font-bold text-gold tracking-tight w-6 shrink-0">
-                                          0{i + 1}
-                                        </span>
-                                        <div className={`p-1 transition-colors ${isOpen ? 'text-gold' : 'text-ink/70 group-hover/item:text-gold'}`}>
-                                          <FeatureIcon iconName={feature.icon} className="h-4.5 w-4.5" />
-                                        </div>
-                                        <h3 className="serif font-bold text-xs sm:text-sm text-ink tracking-tight">
-                                          {feature.title}
-                                        </h3>
-                                      </div>
-                                      <motion.div
-                                        animate={{ rotate: isOpen ? 180 : 0 }}
-                                        transition={{ duration: 0.2 }}
-                                        className={`shrink-0 transition-colors ${isOpen ? 'text-gold' : 'text-ink/30 group-hover/item:text-ink/70'}`}
-                                      >
-                                        <ChevronDown className="h-4 w-4" />
-                                      </motion.div>
-                                    </div>
-
-                                    {/* Accordion Content with Frame Motion */}
-                                    <AnimatePresence initial={false}>
-                                      {isOpen && (
-                                        <motion.div
-                                          initial={{ height: 0, opacity: 0 }}
-                                          animate={{ height: 'auto', opacity: 1 }}
-                                          exit={{ height: 0, opacity: 0 }}
-                                          transition={{ duration: 0.2, ease: 'easeInOut' }}
-                                        >
-                                          <div className="px-6 pb-5 pl-14 sm:pl-16 border-t border-dashed border-ink-fade pt-3 bg-paper">
-                                            <p className="text-xs sm:text-sm text-ink/75 leading-relaxed">
-                                              {feature.description}
-                                            </p>
-                                          </div>
-                                        </motion.div>
-                                      )}
-                                    </AnimatePresence>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  </div>
-                </section>
-
-                {/* Traveler Voices Accordion Section */}
-                <section className="py-8 bg-transparent border-b border-ink-fade">
-                  <div className="mx-auto max-w-4xl px-4 sm:px-6">
-                    <div 
-                      onClick={() => setTravelerVoicesOpen(!travelerVoicesOpen)}
-                      className={`cursor-pointer border p-6 sm:p-10 transition-all duration-300 relative overflow-hidden select-none group ${
-                        travelerVoicesOpen ? 'bg-[#faf7f2] border-gold shadow-lg text-ink' : 'bg-[#faf7f2] border-gold/30 hover:border-gold text-ink'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-6">
-                        <div className="space-y-2.5 text-left">
-                          <span className="text-xs font-bold uppercase tracking-[0.25em] text-gold block">
-                            Traveler Voices ({reviews.length})
-                          </span>
-                          <h2 className="serif text-2xl sm:text-3xl font-bold text-ink tracking-tight">
-                            VIEW OR ADD REVIEWS...
-                          </h2>
-                          <p className="text-ink/70 text-xs leading-relaxed max-w-xl mt-1">
-                            Our commitment to quality has earned the trust of executive travelers and families alike. Click to read traveler testimonials.
-                          </p>
-                        </div>
-                        <motion.div
-                          animate={{ rotate: travelerVoicesOpen ? 180 : 0 }}
-                          transition={{ duration: 0.2 }}
-                          className={`p-2 shrink-0 transition-colors ${travelerVoicesOpen ? 'text-gold' : 'text-ink/30 group-hover:text-gold'}`}
-                        >
-                          <ChevronDown className="h-6 w-6" />
-                        </motion.div>
-                      </div>
-
-                      <AnimatePresence initial={false}>
-                        {travelerVoicesOpen && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.25, ease: 'easeInOut' }}
-                            className="overflow-hidden"
-                            onClick={(e) => e.stopPropagation()} // Prevent closing when interacting with inner items
-                          >
-                            <div className="mt-8 border-t border-dashed border-ink-fade pt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-                              {reviews.map((t, i) => (
-                                <div 
-                                  key={i}
-                                  className="bg-white border border-ink-fade rounded-none p-6 flex flex-col justify-between text-left"
-                                >
-                                  <div className="space-y-4">
-                                    <div className="flex gap-1 text-gold text-xs">
-                                      ★★★★★
-                                    </div>
-                                    <p className="serif text-xs text-ink italic leading-relaxed">
-                                      &ldquo;{t.comment}&rdquo;
-                                    </p>
-                                  </div>
-
-                                  <div className="flex items-center gap-3 pt-4 mt-6 border-t border-ink-fade">
-                                    <div className="h-8 w-8 flex items-center justify-center rounded-none bg-gold text-neutral-900 text-[10px] font-bold font-serif uppercase shrink-0">
-                                      {t.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
-                                    </div>
-                                    <div className="overflow-hidden">
-                                      <span className="block font-bold text-[11px] text-ink truncate">{t.name}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                            <div className="mt-8 pt-8 border-t border-dashed border-ink-fade flex flex-col sm:flex-row gap-4">
-                              <input 
-                                type="text" 
-                                placeholder="Name (optional)" 
-                                value={newReviewName}
-                                onChange={(e) => setNewReviewName(e.target.value)}
-                                className="sm:w-1/4 bg-white border border-ink-fade px-4 py-3 text-xs focus:outline-none focus:border-gold" 
-                              />
-                              <input 
-                                type="text" 
-                                placeholder="Write a review..." 
-                                value={newReviewText}
-                                onChange={(e) => setNewReviewText(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleAddReview()}
-                                className="flex-1 bg-white border border-ink-fade px-4 py-3 text-xs focus:outline-none focus:border-gold" 
-                              />
-                              <button 
-                                onClick={handleAddReview}
-                                className="bg-[#0b1d3a] text-white px-8 py-3 text-xs font-bold uppercase tracking-widest hover:bg-gold transition-colors"
-                              >
-                                Add Review
-                              </button>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  </div>
-                </section>
-
-                {/* Physical Contact Information - Immediate Desk */}
-                <section className="py-8 bg-transparent">
-                  <div className="mx-auto max-w-4xl px-4 sm:px-6">
-                    <div className="border p-6 sm:p-10 rounded-md bg-[#faf7f2] text-ink flex flex-col md:flex-row md:items-center md:justify-between gap-6 transition-all duration-300 border-gold/30 hover:border-gold shadow-lg">
-                      <div className="space-y-2.5 text-left">
-                        <span className="text-xs font-bold uppercase tracking-[0.25em] text-gold block">
-                          Immediate Desk
-                        </span>
-                        <h2 className="serif text-2xl sm:text-3xl font-bold text-ink tracking-tight">
-                          PREFER WHATSAPP BOOKING?
-                        </h2>
-                        <p className="text-ink/70 text-xs leading-relaxed max-w-xl mt-1">
-                          Click to chat with our dispatch agents directly on WhatsApp to inquire or make a fast manual booking!
+                      ))
+                    ) : (
+                      <div className="text-center py-8 border border-dashed border-gray-150 rounded-xl">
+                        <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-xs text-gray-500 font-bold">
+                          {language === 'en' ? 'No timetables match your search query' : 'Palibe ndondomeko yogwirizana ndi fufuzidwe yanu'}
                         </p>
+                        <button
+                          onClick={() => setOperatorSearchQuery('')}
+                          className="text-xs text-[#FF5A1F] font-bold mt-1.5 underline cursor-pointer"
+                        >
+                          {language === 'en' ? 'Reset search filter' : 'Bwererani pambuyo'}
+                        </button>
                       </div>
-                      <a
-                        href={`https://wa.me/${OFFICE_CONTACTS.whatsapp.replace(/[^0-9]/g, '')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 px-8 py-3.5 bg-[#0b1d3a] hover:bg-gold text-white font-bold text-xs uppercase tracking-[0.15em] transition-all duration-300 cursor-pointer shadow-sm shrink-0"
-                      >
-                        <MessageSquare className="h-4 w-4 fill-current" />
-                        <span>Chat WhatsApp Hotline</span>
-                      </a>
-                    </div>
+                    )}
                   </div>
-                </section>
-
+                </div>
               </div>
 
+              {/* Inactive Coming Soon Operators */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 opacity-75">
+                  <span className="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-gray-200 text-gray-500 inline-block mb-3">Coming Soon</span>
+                  <h3 className="text-base font-black text-gray-500">AXA Coaches</h3>
+                  <p className="text-xs text-gray-400 mt-2">Integrating premium intercity schedules between Blantyre and Mzuzu in Phase 2 launch.</p>
+                </div>
+                <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 opacity-75">
+                  <span className="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-gray-200 text-gray-500 inline-block mb-3">Coming Soon</span>
+                  <h3 className="text-base font-black text-gray-500">Kwezy Bus Services</h3>
+                  <p className="text-xs text-gray-400 mt-2">Integrating modern business class runs between Lilongwe and Mzuzu in upcoming updates.</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {currentView === 'profile' && (
+            <motion.div
+              key="profile"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="pb-24 px-4 pt-6 max-w-md mx-auto text-left"
+            >
+              <div className="mb-6">
+                <h1 className="serif text-3xl font-black text-[#062A73]">Your Profile</h1>
+                <p className="text-xs text-gray-500 mt-1">Manage your traveler profiles, ticket records, and platform settings</p>
+              </div>
+
+              {/* Profile Main Card */}
+              <div className="bg-white border border-gray-150 rounded-2xl p-5 shadow-sm space-y-4 mb-6">
+                <div className="flex items-center gap-4 border-b border-gray-50 pb-4">
+                  <div className="h-16 w-16 bg-[#062A73]/10 rounded-full flex items-center justify-center text-[#062A73] font-bold text-xl">
+                    <User className="h-8 w-8" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-black text-navy">Valued YAVA Traveler</h2>
+                    <span className="text-[10px] text-gray-400 uppercase tracking-wider block mt-0.5">Malawi Highway Loyalty Club</span>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Quick Booking Auto-Fill:</span>
+                    <p className="text-xs text-gray-500 mb-3">Your default traveler details are securely stored inside your local cache for swift boarding passes generation.</p>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-[9px] uppercase font-black text-gray-400 block mb-1">Default Full Name</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Chikondi Phiri"
+                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs outline-none focus:border-[#FF5A1F]"
+                          defaultValue="Chikondi Phiri"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] uppercase font-black text-gray-400 block mb-1">Default Phone Number</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. +265 995 44 64 26"
+                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs outline-none focus:border-[#FF5A1F]"
+                          defaultValue="+265 995 44 64 26"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Help & Settings */}
+              <div className="space-y-3">
+                <button
+                  onClick={() => navigateTo('bookings')}
+                  className="w-full bg-white border border-gray-150 hover:border-[#FF5A1F]/40 p-4 rounded-xl flex items-center justify-between text-left shadow-sm transition-all cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 bg-orange-50 text-[#FF5A1F] rounded-xl flex items-center justify-center">
+                      <Ticket className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black text-navy uppercase tracking-wider">My Boarding passes</h3>
+                      <span className="text-[10px] text-gray-400 block mt-0.5">View your scheduled or previous bookings ({bookingCount})</span>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-gray-400" />
+                </button>
+
+                <div className="bg-white border border-gray-150 p-4 rounded-xl shadow-sm space-y-4">
+                  <h3 className="text-xs font-black text-navy uppercase tracking-wider border-b border-gray-50 pb-2">Platform Settings</h3>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500 font-medium">Notification Alerts</span>
+                    <span className="text-emerald-600 font-bold uppercase tracking-wider text-[10px]">● Enabled</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500 font-medium">Default Currency</span>
+                    <span className="text-gray-900 font-bold">MWK (Malawian Kwacha)</span>
+                  </div>
+                </div>
+
+                {/* Administrator Panel Direct Gateway */}
+                <button
+                  onClick={() => navigateTo('management')}
+                  className="w-full bg-[#062A73] hover:bg-[#FF5A1F] text-white p-4 rounded-xl flex items-center justify-between text-left shadow-md transition-all cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 bg-white/10 text-white rounded-xl flex items-center justify-center">
+                      <Settings className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-widest text-white">Admin Dispatch Gate</h3>
+                      <span className="text-[10px] text-white/70 block mt-0.5">Access office manifest and fleet dispatch control desk</span>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-white/80" />
+                </button>
+              </div>
             </motion.div>
           )}
 
@@ -714,8 +998,61 @@ export default function App() {
         navigateTo(view);
       }} />
 
+      {/* Redesigned Premium Sticky Bottom Navigation Bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-150 py-3.5 px-6 shadow-xl backdrop-blur-md bg-white/95">
+        <div className="max-w-md mx-auto flex items-center justify-between">
+          <button 
+            onClick={() => {
+              setPrefilledRoute(null);
+              setPrefilledQuery(null);
+              navigateTo('home');
+            }}
+            className={`flex flex-col items-center gap-1 transition-all duration-200 cursor-pointer ${currentView === 'home' ? 'text-[#FF5A1F] scale-105' : 'text-gray-400 hover:text-navy'}`}
+          >
+            <Home className="h-5.5 w-5.5" />
+            <span className="text-[10px] font-black tracking-wider uppercase">{language === 'en' ? 'Home' : 'Kwanu'}</span>
+          </button>
+          
+          <button 
+            onClick={() => {
+              setPrefilledRoute(null);
+              setPrefilledQuery(null);
+              navigateTo('operators');
+            }}
+            className={`flex flex-col items-center gap-1 transition-all duration-200 cursor-pointer ${currentView === 'operators' ? 'text-[#FF5A1F] scale-105' : 'text-gray-400 hover:text-navy'}`}
+          >
+            <Bus className="h-5.5 w-5.5" />
+            <span className="text-[10px] font-black tracking-wider uppercase">{language === 'en' ? 'Operators' : 'Mabasi'}</span>
+          </button>
+
+          <button 
+            onClick={() => {
+              setPrefilledRoute(null);
+              setPrefilledQuery(null);
+              navigateTo('bookings');
+            }}
+            className={`flex flex-col items-center gap-1 transition-all duration-200 cursor-pointer ${currentView === 'bookings' ? 'text-[#FF5A1F] scale-105' : 'text-gray-400 hover:text-navy'}`}
+          >
+            <Ticket className="h-5.5 w-5.5" />
+            <span className="text-[10px] font-black tracking-wider uppercase">{language === 'en' ? 'Tickets' : 'Matikiti'}</span>
+          </button>
+
+          <button 
+            onClick={() => {
+              setPrefilledRoute(null);
+              setPrefilledQuery(null);
+              navigateTo('profile');
+            }}
+            className={`flex flex-col items-center gap-1 transition-all duration-200 cursor-pointer ${currentView === 'profile' ? 'text-[#FF5A1F] scale-105' : 'text-gray-400 hover:text-navy'}`}
+          >
+            <User className="h-5.5 w-5.5" />
+            <span className="text-[10px] font-black tracking-wider uppercase">{language === 'en' ? 'Profile' : 'Mbiri'}</span>
+          </button>
+        </div>
+      </div>
+
       {/* Floating Action Buttons (Bottom Right) */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3.5 items-end">
+      <div className="fixed bottom-20 md:bottom-6 right-6 z-45 flex flex-col gap-3.5 items-end">
         {/* Back to Top (Gold) */}
         <AnimatePresence>
           {showBackToTop && (
@@ -732,48 +1069,6 @@ export default function App() {
             </motion.button>
           )}
         </AnimatePresence>
-
-        {/* My Bookings Floating Action (Dark Blue with Gold badge) */}
-        <motion.button
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ 
-            opacity: 1, 
-            scale: 1,
-            width: isBookingsExpanded ? 160 : 44
-          }}
-          transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-          onMouseEnter={() => setIsBookingsExpanded(true)}
-          onMouseLeave={() => setIsBookingsExpanded(false)}
-          onClick={() => navigateTo('bookings')}
-          className="flex items-center justify-center bg-[#0b1d3a] hover:bg-[#152e55] text-white border border-gold/40 shadow-xl transition-all duration-300 cursor-pointer rounded-md relative h-11 overflow-visible"
-          title="View My Bookings"
-        >
-          <div className="flex items-center justify-center overflow-hidden w-full px-2">
-            <Calendar className="h-4.5 w-4.5 text-gold shrink-0" />
-            <motion.div
-              initial={false}
-              animate={{ 
-                width: isBookingsExpanded ? '85px' : '0px',
-                opacity: isBookingsExpanded ? 1 : 0,
-                marginLeft: isBookingsExpanded ? '8px' : '0px'
-              }}
-              transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-              className="overflow-hidden whitespace-nowrap text-left text-xs font-bold uppercase tracking-[0.15em] text-white"
-            >
-              My Bookings
-            </motion.div>
-          </div>
-          {bookingCount > 0 && (
-            <motion.span 
-              initial={{ scale: 0, y: 10 }}
-              animate={{ scale: 1, y: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 15 }}
-              className="absolute -top-2 -right-2 flex h-5.5 w-5.5 items-center justify-center rounded-full bg-gold text-[10px] font-bold text-white shadow-lg border border-[#0b1d3a] z-10"
-            >
-              {bookingCount}
-            </motion.span>
-          )}
-        </motion.button>
       </div>
 
       {/* First-Time User Language Selection Prompt */}
@@ -796,14 +1091,14 @@ export default function App() {
               transition={{ type: 'spring', duration: 0.5 }}
               className="relative w-full max-w-lg bg-[#0b1d3a] border border-gold/40 p-8 sm:p-10 text-center space-y-8 shadow-2xl z-10 rounded-md"
             >
-              {/* Starlink Logo & Icon */}
+              {/* YAVA Logo & Icon */}
               <div className="flex flex-col items-center space-y-3">
                 <div className="flex h-16 w-16 items-center justify-center rounded-sm bg-neutral-900 border-2 border-gold text-gold shadow-lg">
                   <Bus className="h-8 w-8 stroke-[1.5] animate-pulse" />
                 </div>
                 <div>
-                  <h2 className="serif text-2xl sm:text-3xl font-extrabold tracking-tight text-white uppercase">
-                    STARLINK TOURS
+                  <h2 className="serif text-2xl sm:text-3xl font-extrabold tracking-widest text-white uppercase">
+                    YAVA
                   </h2>
                   <span className="block text-[10px] uppercase tracking-[0.3em] text-gold font-bold">
                     Malawi &bull; Executive Coach

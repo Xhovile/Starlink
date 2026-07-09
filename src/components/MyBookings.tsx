@@ -17,7 +17,7 @@ export default function MyBookings({ onNavigateToBooking, onRefreshTrigger }: My
 
   useEffect(() => {
     try {
-      const stored = JSON.parse(localStorage.getItem('starlink_bookings') || '[]');
+      const stored = JSON.parse(localStorage.getItem('yava_bookings') || '[]');
       setBookings(stored);
     } catch (err) {
       console.error('Failed to load bookings from history', err);
@@ -32,13 +32,13 @@ export default function MyBookings({ onNavigateToBooking, onRefreshTrigger }: My
     if (!bookingToDelete) return;
     const filtered = bookings.filter(b => b.id !== bookingToDelete.id);
     setBookings(filtered);
-    localStorage.setItem('starlink_bookings', JSON.stringify(filtered));
+    localStorage.setItem('yava_bookings', JSON.stringify(filtered));
     window.dispatchEvent(new Event('storage'));
     setBookingToDelete(null);
   };
 
   const getWhatsAppLink = (booking: BookingRequest) => {
-    const text = `*STARLINK TOURS - LUXURY BOOKING REQUEST*
+    const text = `*YAVA - LUXURY BOOKING REQUEST*
 --------------------------------------------
 *Ticket Ref:* ${booking.bookingRef}
 *Passenger:* ${booking.fullName}
@@ -116,7 +116,7 @@ Please review and confirm my seat reservation! Thank you.`;
                           <Bus className="h-4 w-4" />
                         </div>
                         <div>
-                          <span className="serif font-bold tracking-tight text-white block text-xs sm:text-sm">STARLINK TOURS</span>
+                          <span className="serif font-bold tracking-tight text-white block text-xs sm:text-sm">YAVA</span>
                           <span className="text-[8px] sm:text-[9px] uppercase tracking-widest text-gold font-bold block">
                             {language === 'en' ? 'Boarding Request Pass' : 'Pasi Lonyamukira Basi'}
                           </span>

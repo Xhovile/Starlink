@@ -1,141 +1,242 @@
-import React from 'react';
-import { Bus, ArrowRight, ShieldCheck, Clock, Award, Star } from 'lucide-react';
-import { motion } from 'motion/react';
+import React, { useState, useEffect } from 'react';
+import { Bus, ArrowRight, ShieldCheck, Clock, Award, Star, ArrowLeftRight, Calendar, Users, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
 
-const heroImg = 'https://lh3.googleusercontent.com/d/100qe8fyREw7ffObbZi7UabPODbFmZmZt';
-
 interface HeroProps {
-  onNavigateToBooking: (prefill?: { departure: string; destination: string; date: string }) => void;
+  onNavigateToBooking: (prefill?: { departure: string; destination: string; date: string, passengers: number }) => void;
   onNavigateToSchedule: () => void;
 }
 
 export default function Hero({ onNavigateToBooking, onNavigateToSchedule }: HeroProps) {
   const { language, t } = useLanguage();
+  
+  // Interactive Floating Booking Card States
+  const [departure, setDeparture] = useState<'Lilongwe' | 'Blantyre'>('Lilongwe');
+  const [destination, setDestination] = useState<'Lilongwe' | 'Blantyre'>('Blantyre');
+  const [travelDate, setTravelDate] = useState<string>(() => {
+    // Tomorrow as default date
+    const tom = new Date();
+    tom.setDate(tom.getDate() + 1);
+    return tom.toISOString().split('T')[0];
+  });
+  const [passengers, setPassengers] = useState<number>(1);
+  const [showPassengersDropdown, setShowPassengersDropdown] = useState<boolean>(false);
+
+  // Auto flip destination when departure matches
+  useEffect(() => {
+    if (departure === destination) {
+      setDestination(departure === 'Lilongwe' ? 'Blantyre' : 'Lilongwe');
+    }
+  }, [departure]);
+
+  const handleSwap = () => {
+    const temp = departure;
+    setDeparture(destination);
+    setDestination(temp);
+  };
+
+  const handleBookClick = () => {
+    onNavigateToBooking({
+      departure,
+      destination,
+      date: travelDate,
+      passengers
+    });
+  };
+
+  // Human readable date formatter (e.g., "24 May 2026")
+  const formatDisplayDate = (dateStr: string) => {
+    if (!dateStr) return 'Select Date';
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString(language === 'en' ? 'en-US' : 'en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      });
+    } catch {
+      return dateStr;
+    }
+  };
 
   return (
-    <div className="relative border-b border-ink-fade bg-[#B5C7EB] text-ink overflow-hidden" id="hero-section">
+    <div className="relative w-full bg-white px-4 pt-4 pb-12 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       
-      {/* Dark Ambient Background Image with Rich Overlay */}
-      <div className="absolute inset-0 z-0">
-        <img
-          src="/src/assets/images/hero_highway_bg_1783087995992.jpg"
-          alt="Scenic Malawian Highway"
-          className="h-full w-full object-cover opacity-25"
-          referrerPolicy="no-referrer"
-          loading="lazy"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#B5C7EB] via-[#B5C7EB]/95 to-[#B5C7EB]/75" />
+      {/* 2. Hero Banner Container */}
+      <div className="w-full bg-[#062A73] rounded-3xl p-6 sm:p-10 lg:p-12 text-center text-white relative overflow-hidden min-h-[220px] sm:min-h-[260px] flex flex-col justify-center items-center shadow-xl">
+        {/* Subtle geometric background overlay for elite depth */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,90,31,0.15),transparent)] pointer-events-none" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(6,42,115,0.85),rgba(6,42,115,0.98))]" />
+        
+        {/* Banner Copy */}
+        <div className="relative z-10 max-w-3xl mx-auto space-y-3 sm:space-y-4">
+          <h1 className="serif text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight">
+            {language === 'en' ? 'Book Bus Tickets With YAVA' : 'Sungani Matikiti a Bus a YAVA'}
+          </h1>
+          <p className="text-[10px] sm:text-xs font-black tracking-[0.25em] text-[#FF5A1F] uppercase">
+            CONNECTING PEOPLE... EVERYWHERE
+          </p>
+        </div>
       </div>
 
-      <div className="relative z-10 mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-20">
-        
-        {/* Editorial Title Banner */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+      {/* 3. Floating Booking Card (Overlapping) */}
+      <div className="relative z-20 max-w-xl mx-auto -mt-8 sm:-mt-12 px-2">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 space-y-6">
           
-          {/* Hero Left Content: Editorial Copy */}
-          <div className="lg:col-span-7 space-y-8 text-left">
-            <div className="space-y-4">
-              <span className="text-base sm:text-lg lg:text-xl font-bold uppercase tracking-[0.2em] text-gold block">
-                {language === 'en' ? "Malawi's Elite Executive Roadways" : "Misewu Yapamwamba Kwambiri ku Malawi"}
+          {/* Vertical Route Indicator Display */}
+          <div className="space-y-4">
+            <div className="flex items-start">
+              
+              {/* Left Route Indicator Column */}
+              <div className="flex flex-col items-center mr-4 pt-1 select-none">
+                <div className="h-4 w-4 rounded-full border-4 border-[#062A73] bg-white flex items-center justify-center shrink-0" />
+                <div className="w-[2px] h-12 border-l-2 border-dashed border-gray-300 my-1" />
+                <div className="h-4 w-4 rounded-full border-4 border-[#FF5A1F] bg-white flex items-center justify-center shrink-0" />
+              </div>
+
+              {/* Right Input Display Fields */}
+              <div className="flex-grow space-y-4">
+                
+                {/* From Field */}
+                <div className="relative">
+                  <span className="text-[9px] uppercase tracking-wider font-bold text-gray-400 block mb-1">
+                    {language === 'en' ? 'From' : 'Kuchokera'}
+                  </span>
+                  <div className="flex items-center justify-between">
+                    <select
+                      value={departure}
+                      onChange={(e) => setDeparture(e.target.value as 'Lilongwe' | 'Blantyre')}
+                      className="text-base font-bold text-[#062A73] bg-transparent outline-none cursor-pointer pr-8 py-1 appearance-none w-full"
+                    >
+                      <option value="Lilongwe">Lilongwe</option>
+                      <option value="Blantyre">Blantyre</option>
+                    </select>
+                    
+                    {/* Swap Button on Right side of From */}
+                    <button
+                      onClick={handleSwap}
+                      type="button"
+                      className="absolute right-0 top-1/2 -translate-y-1/2 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-[#062A73] h-8 w-8 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-sm"
+                      title="Swap cities"
+                    >
+                      <ArrowLeftRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="h-[1px] bg-gray-100 w-full mt-2" />
+                </div>
+
+                {/* To Field */}
+                <div>
+                  <span className="text-[9px] uppercase tracking-wider font-bold text-gray-400 block mb-1">
+                    {language === 'en' ? 'To' : 'Kupita'}
+                  </span>
+                  <select
+                    value={destination}
+                    onChange={(e) => setDestination(e.target.value as 'Lilongwe' | 'Blantyre')}
+                    className="text-base font-bold text-[#062A73] bg-transparent outline-none cursor-pointer pr-8 py-1 appearance-none w-full"
+                  >
+                    <option value="Blantyre">Blantyre</option>
+                    <option value="Lilongwe">Lilongwe</option>
+                  </select>
+                  <div className="h-[1px] bg-gray-100 w-full mt-2" />
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          {/* Date Selector Row */}
+          <div className="relative">
+            <span className="text-[9px] uppercase tracking-wider font-bold text-gray-400 block mb-1">
+              {language === 'en' ? 'Date of travel' : 'Tsiku la Ulendo'}
+            </span>
+            <div className="flex items-center justify-between cursor-pointer group">
+              <span className="text-base font-bold text-[#062A73]">
+                {formatDisplayDate(travelDate)}
               </span>
-              
-              <h1 className="serif text-3xl sm:text-4xl lg:text-4xl leading-[1.05] tracking-tight text-ink font-bold">
-                Blantyre <br />
-                <span className="italic font-normal text-gold text-xl sm:text-2xl lg:text-2xl">
-                  {language === 'en' ? 'to and from' : 'kupita ndi kuchokera'}
-                </span> <br />
-                Lilongwe
-              </h1>
-            </div>
-
-            {/* Price Cards & Timetable Snapshot (Editorial Style) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 max-w-2xl">
-              <div className="bg-[#36454f] p-4 shadow-md text-white rounded-md">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-white/70 block mb-1">
-                  {language === 'en' ? 'Promotional Fare' : 'Mtengo Wapadera'}
-                </span>
-                <span className="serif text-3xl font-bold text-gold">MWK 50,000</span>
-                <p className="text-[10px] font-medium text-white/80 uppercase tracking-wider mt-1">
-                  {language === 'en' ? 'Round Trip All Inclusive' : 'Ulendowu Wobwerera All Inclusive'}
-                </p>
-              </div>
-
-              <div className="bg-[#36454f] p-4 shadow-md text-white rounded-md">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-white/70 block mb-1">
-                  {language === 'en' ? 'Standard Cabin Fare' : 'Mtengo Wapakati'}
-                </span>
-                <span className="serif text-3xl font-bold text-white">MWK 35,000</span>
-                <p className="text-[10px] font-medium text-white/80 uppercase tracking-wider mt-1">
-                  {language === 'en' ? 'One-Way All Inclusive' : 'Ulendo Umodzi All Inclusive'}
-                </p>
+              <div className="relative">
+                <Calendar className="h-5 w-5 text-[#062A73] group-hover:text-[#FF5A1F] transition-colors" />
+                <input
+                  type="date"
+                  min={new Date().toISOString().split('T')[0]}
+                  value={travelDate}
+                  onChange={(e) => setTravelDate(e.target.value)}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                />
               </div>
             </div>
-
-            {/* Quick trust metrics */}
-            <div className="grid grid-cols-3 gap-4 p-4 bg-[#0b1d3a] border border-gold/30 max-w-md text-white shadow-md rounded-md">
-              <div>
-                <span className="serif text-xl sm:text-2xl font-bold text-gold">100%</span>
-                <span className="text-[9px] font-bold uppercase tracking-wider text-white/80 block">
-                  {language === 'en' ? 'On-Time Rates' : 'Nthawi Yeniyeni'}
-                </span>
-              </div>
-              <div>
-                <span className="serif text-xl sm:text-2xl font-bold text-gold">Daily</span>
-                <span className="text-[9px] font-bold uppercase tracking-wider text-white/80 block">
-                  {language === 'en' ? 'Express Runs' : 'Maulendo a Tsiku'}
-                </span>
-              </div>
-              <div>
-                <span className="serif text-xl sm:text-2xl font-bold text-gold">Certified</span>
-                <span className="text-[9px] font-bold uppercase tracking-wider text-white/80 block">
-                  {language === 'en' ? 'Safety Fleet' : 'Chitetezo Chokwanira'}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-4 pt-2">
-              <button
-                onClick={() => onNavigateToBooking()}
-                id="hero-book-now-btn"
-                className="w-44 h-11 flex items-center justify-center bg-gold hover:bg-[#0b1d3a] hover:text-white text-white text-[10px] font-bold uppercase tracking-widest transition-all duration-300 rounded-md shadow-[0_12px_24px_rgba(0,0,0,0.35)] hover:shadow-[0_16px_36px_rgba(0,0,0,0.45)] hover:-translate-y-0.5 transform cursor-pointer"
-              >
-                {t('reserveSeatNow')}
-              </button>
-              
-              <button
-                onClick={onNavigateToSchedule}
-                id="hero-schedule-btn"
-                className="w-44 h-11 flex items-center justify-center bg-[#0b1d3a] hover:bg-gold text-white border border-[#0b1d3a]/20 text-[10px] font-bold uppercase tracking-widest transition-all duration-300 rounded-md shadow-[0_12px_24px_rgba(0,0,0,0.35)] hover:shadow-[0_16px_36px_rgba(0,0,0,0.45)] hover:-translate-y-0.5 transform cursor-pointer"
-              >
-                {t('viewTimetable')}
-              </button>
-            </div>
+            <div className="h-[1px] bg-gray-100 w-full mt-2" />
           </div>
 
-          {/* Hero Right Content: Minimalist Booking Form and image vignette */}
-          <div className="lg:col-span-5 space-y-6 flex items-center">
-            
-            {/* Vintage layout photo vignette */}
-            <div className="relative h-96 w-full overflow-hidden border border-ink-fade group rounded-md">
-              <img
-                src={heroImg}
-                alt="Executive Coach"
-                className="h-full w-full object-cover grayscale opacity-90 group-hover:grayscale-0 transition-all duration-700"
-                referrerPolicy="no-referrer"
-                loading="lazy"
-              />
-              <div className="absolute inset-0 bg-ink/10 mix-blend-multiply"></div>
-              <div className="absolute bottom-3 left-3 bg-paper border border-ink-fade px-3 py-1 text-[9px] uppercase font-bold tracking-wider text-ink shadow-sm">
-                {language === 'en' ? 'Starlink Flagship Coach No. 7' : 'Basi ya Starlink No. 7'}
-              </div>
+          {/* Passengers Row */}
+          <div className="relative">
+            <span className="text-[9px] uppercase tracking-wider font-bold text-gray-400 block mb-1">
+              {language === 'en' ? 'Passengers' : 'Akweli'}
+            </span>
+            <div 
+              onClick={() => setShowPassengersDropdown(!showPassengersDropdown)}
+              className="flex items-center justify-between cursor-pointer group"
+            >
+              <span className="text-base font-bold text-[#062A73]">
+                {passengers} {passengers === 1 ? (language === 'en' ? 'Passenger' : 'Mkweli mmodzi') : (language === 'en' ? 'Passengers' : 'Akweli')}
+              </span>
+              <ChevronDown className={`h-5 w-5 text-[#062A73] transition-transform duration-200 ${showPassengersDropdown ? 'rotate-180' : ''}`} />
             </div>
 
+            {/* Quick Interactive Passengers Dropdown / Incrementer */}
+            <AnimatePresence>
+              {showPassengersDropdown && (
+                <>
+                  <div className="fixed inset-0 z-20" onClick={() => setShowPassengersDropdown(false)} />
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute left-0 right-0 top-12 bg-white border border-gray-150 rounded-xl shadow-xl p-4 z-30"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#062A73]">Select number of seats:</span>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (passengers > 1) setPassengers(passengers - 1);
+                          }}
+                          className="h-8 w-8 rounded-full border border-gray-200 flex items-center justify-center font-bold text-lg text-gray-600 hover:bg-gray-50 active:scale-95 transition-all cursor-pointer"
+                        >
+                          -
+                        </button>
+                        <span className="text-base font-black text-[#062A73] w-6 text-center">{passengers}</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (passengers < 10) setPassengers(passengers + 1);
+                          }}
+                          className="h-8 w-8 rounded-full border border-gray-200 flex items-center justify-center font-bold text-lg text-gray-600 hover:bg-gray-50 active:scale-95 transition-all cursor-pointer"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+            <div className="h-[1px] bg-gray-100 w-full mt-2" />
           </div>
+
+          {/* Book Now Button CTA */}
+          <button
+            onClick={handleBookClick}
+            className="w-full bg-[#FF5A1F] hover:bg-[#e04f1a] text-white py-4 px-6 text-xs font-extrabold uppercase tracking-widest rounded-xl shadow-lg shadow-[#FF5A1F]/20 active:scale-[0.98] transition-all cursor-pointer"
+          >
+            {language === 'en' ? 'Book Ticket' : 'Sungani Tikiti'}
+          </button>
 
         </div>
-
       </div>
+
     </div>
   );
 }

@@ -120,15 +120,15 @@ export const translations: Record<Language, Translations> = {
     vipPromotion: 'Executive VIP Fare Promotion Active',
     loadingService: 'Loading Executive Service...',
     accessRestricted: 'Access Restricted',
-    adminConsole: 'Starlink Administration Console',
+    adminConsole: 'YAVA Administration Console',
     adminMsg: 'Management moderation page is coming soon upon approval. The administrative dashboard, fleet metrics, and dispatch tools will be unlocked once executive authorization completes.',
     returnDashboard: 'Return to Dashboard',
-    copyright: 'Starlink Tours & Travel. All rights reserved.',
+    copyright: 'YAVA. All rights reserved.',
     allRightsReserved: 'All rights reserved.',
 
     heroPretitle: 'Executive Coach Class',
     heroTitle: 'Redefining Intercity Travel In Malawi',
-    heroDescription: "Travel between Blantyre and Lilongwe in unmatched luxury, safety, and comfort on Starlink's VIP leather reclining seats with full Wi-Fi, refreshments, and veteran professional drivers.",
+    heroDescription: "Travel between Blantyre and Lilongwe in unmatched luxury, safety, and comfort on YAVA's VIP leather reclining seats with full Wi-Fi, refreshments, and veteran professional drivers.",
     reserveSeatNow: 'Reserve Seat Now',
     viewTimetable: 'View Timetable',
     featureLuxuryTitle: 'Malawian Luxury',
@@ -152,7 +152,7 @@ export const translations: Record<Language, Translations> = {
     grandBusinessPark: 'Grand Business Park, Lilongwe',
     from: 'MWK',
 
-    routesScheduleTitle: 'Starlink Intercity Route Timetables',
+    routesScheduleTitle: 'YAVA Intercity Route Timetables',
     routesScheduleSubtitle: 'All daily scheduled departures between Blantyre and Lilongwe. Choose your preferred departure and secure your reservation.',
     allScheduledDepartures: 'All Daily Scheduled Departures',
     oneWayFare: 'One-way Fare',
@@ -178,7 +178,7 @@ export const translations: Record<Language, Translations> = {
     stepTrip: '2. Travel Details',
     stepReview: '3. Special Requests',
 
-    aboutTitle: 'About Starlink Tours',
+    aboutTitle: 'About YAVA',
     aboutSubtitle: 'Malawi\'s premiere executive intercity coach travel brand, delivering unmatched quality, punctuality, and passenger care.',
     ourFleetTitle: 'Our Premium Fleet & Standards',
     ourFleetSubtitle: 'Designed to deliver an exceptional travel experience, our executive coaches are regularly maintained to the absolute highest international safety standards.',
@@ -193,7 +193,7 @@ export const translations: Record<Language, Translations> = {
 
     myBookingsTitle: 'Track & Manage Bookings',
     myBookingsSubtitle: 'Search your existing ticket reservation request status and details using your Booking Reference number.',
-    searchBookingRef: 'Enter Booking Reference (e.g., SL-123456)',
+    searchBookingRef: 'Enter Booking Reference (e.g., YV-1234-BT)',
     searchPlaceholder: 'Search by Booking Reference...',
     searchButton: 'Search Booking',
     noBookingsFound: 'No booking requests found matching this reference. Please check and try again, or create a new booking.',
@@ -215,15 +215,15 @@ export const translations: Record<Language, Translations> = {
     vipPromotion: 'Zotsatsa za VIP Exec Ndizololeka Tsopano',
     loadingService: 'Kukonzekeretsa Basi ya Executive...',
     accessRestricted: 'Osalowa Pololedwa',
-    adminConsole: 'Malo Oyang\'anira a Starlink',
+    adminConsole: 'Malo Oyang\'anira a YAVA',
     adminMsg: 'Tsamba la oyang\'anira liri pafupi kutsegulidwa posachedwa. Dashboard ndi zida zonse zidzatsegulidwa pambuyo polandira chilolezo chapamwamba.',
     returnDashboard: 'Bwererani ku Dashboard',
-    copyright: 'Starlink Tours & Travel. Maumwini onse ndi otetezedwa.',
+    copyright: 'YAVA. Maumwini onse ndi otetezedwa.',
     allRightsReserved: 'Maumwini onse ndi otetezedwa.',
 
     heroPretitle: 'Gulu la Executive Coach',
     heroTitle: 'Kukonza Mayendedwe a Pakati pa Mizinda ku Malawi',
-    heroDescription: "Yendani pakati pa Blantyre ndi Lilongwe pamtendere waukulu, chitetezo, ndi chitonthozo pamipando yachikopa ya Starlink yomwe imatsamira ndi Wi-Fi yodzaza, zotsitsimula, ndi madalaivala odziwa bwino ntchito.",
+    heroDescription: "Yendani pakati pa Blantyre ndi Lilongwe pamtendere waukulu, chitetezo, ndi chitonthozo pamipando yachikopa ya YAVA yomwe imatsamira ndi Wi-Fi yodzaza, zotsitsimula, ndi madalaivala odziwa bwino ntchito.",
     reserveSeatNow: 'Sungani Mpando Tsopano',
     viewTimetable: 'Onani Ndandanda',
     featureLuxuryTitle: 'Zamtengo Wapatali ku Malawi',
@@ -247,7 +247,7 @@ export const translations: Record<Language, Translations> = {
     grandBusinessPark: 'Grand Business Park, Lilongwe',
     from: 'MWK',
 
-    routesScheduleTitle: 'Ndandanda ya Mayendedwe a Starlink',
+    routesScheduleTitle: 'Ndandanda ya Mayendedwe a YAVA',
     routesScheduleSubtitle: 'Maulendo onse a tsiku ndi tsiku pakati pa Blantyre ndi Lilongwe. Sankhani nthawi yomwe mukufuna ndipo sungani malo anu.',
     allScheduledDepartures: 'Maulendo Onse a Tsiku ndi Tsiku',
     oneWayFare: 'Mtengo wa Ulendo Umodzi',
@@ -273,8 +273,8 @@ export const translations: Record<Language, Translations> = {
     stepTrip: '2. Zambiri za Ulendo',
     stepReview: '3. Zapadera',
 
-    aboutTitle: 'Zambiri za Starlink Tours',
-    aboutSubtitle: 'Starlink Tours ndi mtundu woyamba wa mabasi amakono ku Malawi, opereka khalidwe labwino kwambiri, kusasunga nthawi, komanzo kusamalira okwera.',
+    aboutTitle: 'Zambiri za YAVA',
+    aboutSubtitle: 'YAVA ndi mtundu woyamba wa mabasi amakono ku Malawi, opereka khalidwe labwino kwambiri, kusasunga nthawi, komanzo kusamalira okwera.',
     ourFleetTitle: 'Mabasi Athu a Mtengo Wapatali',
     ourFleetSubtitle: 'Kuti mukhale ndi ulendo wabwino, mabasi athu amasamaliridwa pafupipafupi malinga ndi malamulo apadziko lonse a chitetezo.',
 
@@ -288,7 +288,7 @@ export const translations: Record<Language, Translations> = {
 
     myBookingsTitle: 'Tsatirani Ulendo Wanu',
     myBookingsSubtitle: 'Fufuzani momwe pempho lanu losungitsira matikiti lilili pogwiritsa ntchito Nambala Yanu ya Ulendo.',
-    searchBookingRef: 'Lembani Nambala ya Ulendo (mwachitsanzo, SL-123456)',
+    searchBookingRef: 'Lembani Nambala ya Ulendo (mwachitsanzo, YV-1234-BT)',
     searchPlaceholder: 'Fufuzani ndi Nambala ya Ulendo...',
     searchButton: 'Fufuzani Ulendo',
     noBookingsFound: 'Sitinapeze pempho la ulendo lomwe likugwirizana ndi nambala imeneyi. Chonde tsimikizirani ndikuyesanso, kapena pangani ulendo watsopano.',
@@ -309,13 +309,13 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(() => {
-    const saved = localStorage.getItem('starlink_language');
+    const saved = localStorage.getItem('yava_language');
     return (saved === 'ny' || saved === 'en') ? saved : 'en';
   });
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
-    localStorage.setItem('starlink_language', lang);
+    localStorage.setItem('yava_language', lang);
   };
 
   const t = (key: keyof Translations): string => {

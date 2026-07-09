@@ -99,7 +99,7 @@ export const CUSTOMER_TESTIMONIALS = [
   {
     name: 'Chikondi Phiri',
     role: 'Frequent Business Traveler',
-    comment: 'Starlink Tours has completely elevated intercity travel in Malawi. The seats are extremely comfortable, the Wi-Fi is fast enough to do actual work on my laptop, and they are always on time. Wenela to Area 3 is now a breeze.',
+    comment: 'YAVA has completely elevated intercity travel in Malawi. The seats are extremely comfortable, the Wi-Fi is fast enough to do actual work on my laptop, and they are always on time. Wenela to Area 3 is now a breeze.',
     rating: 5,
     date: '2 weeks ago',
   },
@@ -113,7 +113,7 @@ export const CUSTOMER_TESTIMONIALS = [
   {
     name: 'Esme Mwale',
     role: 'Tourism Consultant',
-    comment: 'As someone who values safe driving, I am thoroughly impressed by Starlink. The bus drove at a steady, safe pace, the crew was professional, and the complimentary snacks were a delightful touch. Highly recommended!',
+    comment: 'As someone who values safe driving, I am thoroughly impressed by YAVA. The bus drove at a steady, safe pace, the crew was professional, and the complimentary snacks were a delightful touch. Highly recommended!',
     rating: 5,
     date: '3 days ago',
   },
@@ -138,14 +138,14 @@ export const FREQUENT_QUESTIONS = [
   },
   {
     question: 'Do you offer private coach charters?',
-    answer: 'Absolutely! Starlink Tours offers custom corporate hires and private group charter services across Malawi. Please get in touch with our booking office via phone or our contact form to request a custom quote.',
+    answer: 'Absolutely! YAVA offers custom corporate hires and private group charter services across Malawi. Please get in touch with our booking office via phone or our contact form to request a custom quote.',
   },
 ];
 
 export const OFFICE_CONTACTS = {
   phone: '+265 995 44 64 26',
   whatsapp: '+265 995 44 64 26',
-  email: 'bookings@starlinktours.com',
+  email: 'bookings@yava.mw',
   blantyre: {
     address: 'Clock Tower Mall, opposite Wenela, Blantyre, Malawi',
     hours: 'Mon - Sun: 6:00 AM - 6:00 PM',

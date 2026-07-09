@@ -406,7 +406,7 @@ export default function ManagementPanel() {
             </div>
             <div>
               <h2 className="serif text-2xl font-extrabold tracking-tight text-white uppercase">
-                STARLINK OFFICE
+                YAVA OFFICE
               </h2>
               <span className="block text-[9px] uppercase tracking-[0.3em] text-gold font-bold">
                 Management Login Gate
@@ -474,7 +474,7 @@ export default function ManagementPanel() {
               Administrative Command Center
             </span>
             <h1 className="serif text-3xl font-extrabold tracking-tight text-white uppercase">
-              Starlink Fleet & Dispatch Office
+              YAVA Fleet & Dispatch Office
             </h1>
             <p className="text-white/60 text-xs sm:text-sm">
               Logged in as <strong className="text-gold">Head Dispatcher</strong> | Central Office Desk (Blantyre & Lilongwe)

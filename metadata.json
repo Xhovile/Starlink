@@ -1,6 +1,6 @@
 {
-  "name": "Starlink Tours",
-  "description": "Premium luxury coach service offering safe, reliable, and comfortable intercity travel between Blantyre and Lilongwe.",
+  "name": "YAVA",
+  "description": "Premium luxury coach service offering safe, reliable, and comfortable intercity travel between Blantyre and Lilongwe under the YAVA brand.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

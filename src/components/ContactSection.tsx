@@ -214,7 +214,7 @@ export default function ContactSection() {
                   </h3>
                   <p className="text-ink/75 text-xs max-w-sm mx-auto leading-relaxed">
                     {language === 'en'
-                      ? 'Thank you for contacting Starlink Tours. Our reservations desk has received your request and will follow up with you shortly.'
+                      ? 'Thank you for contacting YAVA. Our reservations desk has received your request and will follow up with you shortly.'
                       : 'Zikomo kwambiri polankhula nafe. Landira uthenga wanu ndipo tikuyankhani posachedwa kwambiri.'}
                   </p>
                   <button
