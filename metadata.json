@@ -1,6 +1,6 @@
 {
   "name": "YAVA",
-  "description": "Premium luxury coach service offering safe, reliable, and comfortable intercity travel between Blantyre and Lilongwe under the YAVA brand.",
+  "description": "Malawi's first bus booking and car hiring platform with premium ticket generation and more.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
