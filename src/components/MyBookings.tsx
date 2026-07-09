@@ -4,6 +4,7 @@ import { Ticket, Trash2, MessageSquare, Bus, Printer, Clock, X, AlertTriangle } 
 import { downloadTicket } from '../utils/ticketDownloader';
 import { useLanguage } from '../context/LanguageContext';
 import { motion, AnimatePresence } from 'motion/react';
+import YavaLogo from './YavaLogo';
 
 interface MyBookingsProps {
   onNavigateToBooking: () => void;
@@ -116,8 +117,8 @@ Please review and confirm my seat reservation! Thank you.`;
                           <Bus className="h-4 w-4" />
                         </div>
                         <div>
-                          <span className="serif font-bold tracking-tight text-white block text-xs sm:text-sm">YAVA</span>
-                          <span className="text-[8px] sm:text-[9px] uppercase tracking-widest text-gold font-bold block">
+                          <YavaLogo monoColor="#ffffff" height={16} className="block" />
+                          <span className="text-[8px] sm:text-[9px] uppercase tracking-widest text-gold font-bold block mt-1">
                             {language === 'en' ? 'Boarding Request Pass' : 'Pasi Lonyamukira Basi'}
                           </span>
                         </div>

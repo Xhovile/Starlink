@@ -14,6 +14,7 @@ import {
 
 import Header from './components/Header';
 import Footer from './components/Footer';
+import YavaLogo from './components/YavaLogo';
 import { useLanguage } from './context/LanguageContext';
 
 const Hero = lazy(() => import('./components/Hero'));
@@ -78,6 +79,7 @@ export default function App() {
   const [bookingCount, setBookingCount] = useState<number>(0);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
   const [openFeatureIndex, setOpenFeatureIndex] = useState<number | null>(0);
+  const [openWhyIndex, setOpenWhyIndex] = useState<number | null>(0);
   const [yavaStandardsOpen, setYavaStandardsOpen] = useState<boolean>(false);
   const [travelerVoicesOpen, setTravelerVoicesOpen] = useState<boolean>(false);
   const homeDate = new Date().toISOString().split('T')[0];
@@ -433,16 +435,16 @@ export default function App() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Departure Card 1 */}
-                    <div className="bg-white rounded-2xl border border-gray-150 p-5 flex items-center justify-between shadow-sm">
+                    <div className="bg-white rounded-2xl border border-gray-100/70 p-5 flex items-center justify-between shadow-sm">
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-2">
                           <span className="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-orange-100 text-[#FF5A1F]">Starlink</span>
                           <span className="text-xs font-bold text-[#062A73]">07:30 AM</span>
                         </div>
                         <h3 className="text-sm font-bold text-navy flex items-center gap-1.5">
-                          <span>Lilongwe</span>
-                          <ArrowRight className="h-3 w-3 text-gray-400" />
-                          <span>Blantyre</span>
+                           <span>Lilongwe</span>
+                           <ArrowRight className="h-3 w-3 text-gray-400" />
+                           <span>Blantyre</span>
                         </h3>
                         <div className="flex items-center gap-2 text-[10px] text-gray-500">
                           <span className="text-[#FF5A1F] font-bold">3 Seats left</span>
@@ -458,16 +460,16 @@ export default function App() {
                     </div>
 
                     {/* Departure Card 2 */}
-                    <div className="bg-white rounded-2xl border border-gray-150 p-5 flex items-center justify-between shadow-sm">
+                    <div className="bg-white rounded-2xl border border-gray-100/70 p-5 flex items-center justify-between shadow-sm">
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-2">
                           <span className="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-orange-100 text-[#FF5A1F]">Starlink</span>
                           <span className="text-xs font-bold text-[#062A73]">02:00 PM</span>
                         </div>
                         <h3 className="text-sm font-bold text-navy flex items-center gap-1.5">
-                          <span>Blantyre</span>
-                          <ArrowRight className="h-3 w-3 text-gray-400" />
-                          <span>Lilongwe</span>
+                           <span>Blantyre</span>
+                           <ArrowRight className="h-3 w-3 text-gray-400" />
+                           <span>Lilongwe</span>
                         </h3>
                         <div className="flex items-center gap-2 text-[10px] text-gray-500">
                           <span className="text-emerald-600 font-bold">12 Seats left</span>
@@ -503,7 +505,7 @@ export default function App() {
                     {/* Starlink Card */}
                     <div 
                       onClick={() => navigateTo('operators')}
-                      className="bg-white border border-gray-100 rounded-2xl p-4 text-left shadow-sm hover:border-[#FF5A1F]/30 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+                      className="bg-white border border-gray-300 rounded-2xl p-4 text-left shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.16)] hover:border-[#FF5A1F]/30 transition-all cursor-pointer flex flex-col justify-between"
                     >
                       <div>
                         <div className="h-10 w-10 bg-[#062A73] text-white rounded-xl flex items-center justify-center font-bold text-sm mb-3 shadow-sm">
@@ -526,7 +528,7 @@ export default function App() {
                     {/* AXA Card */}
                     <div 
                       onClick={() => alert('AXA Coaches integration is coming soon in Phase 2!')}
-                      className="bg-white border border-gray-100 rounded-2xl p-4 text-left shadow-sm hover:border-[#FF5A1F]/30 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group"
+                      className="bg-white border border-gray-300 rounded-2xl p-4 text-left shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.16)] hover:border-[#FF5A1F]/30 transition-all cursor-pointer flex flex-col justify-between group"
                     >
                       <div>
                         <div className="h-10 w-10 bg-gray-100 text-gray-400 rounded-xl flex items-center justify-center font-bold text-sm mb-3">
@@ -551,7 +553,7 @@ export default function App() {
                     {/* Kwezy Card */}
                     <div 
                       onClick={() => alert('Kwezy Bus Services integration is coming soon in Phase 2!')}
-                      className="bg-white border border-gray-100 rounded-2xl p-4 text-left shadow-sm hover:border-[#FF5A1F]/30 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+                      className="bg-white border border-gray-300 rounded-2xl p-4 text-left shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.16)] hover:border-[#FF5A1F]/30 transition-all cursor-pointer flex flex-col justify-between"
                     >
                       <div>
                         <div className="h-10 w-10 bg-gray-100 text-gray-400 rounded-xl flex items-center justify-center font-bold text-sm mb-3">
@@ -575,7 +577,7 @@ export default function App() {
 
                     {/* Sososo Card */}
                     <div 
-                      className="bg-white border border-gray-100 rounded-2xl p-4 text-left shadow-sm flex flex-col justify-between opacity-80"
+                      className="bg-white border border-gray-300 rounded-2xl p-4 text-left shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.16)] flex flex-col justify-between opacity-80"
                     >
                       <div>
                         <div className="h-10 w-10 bg-gray-100 text-gray-400 rounded-xl flex items-center justify-center font-bold text-sm mb-3">
@@ -598,50 +600,113 @@ export default function App() {
                     </div>
 
                   </div>
+
+                  {/* View All Button */}
+                  <div className="mt-8 flex justify-center">
+                    <button
+                      onClick={() => navigateTo('operators')}
+                      className="px-6 py-2.5 border-2 border-[#FF5A1F] text-[#FF5A1F] hover:bg-[#FF5A1F] hover:text-white rounded-lg text-xs font-black uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
+                    >
+                      {language === 'en' ? 'View All' : 'Onetsani Onse'}
+                    </button>
+                  </div>
                 </div>
               </section>
 
               {/* 7. Why YAVA? Section */}
               <section className="py-12 bg-gray-50">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
-                  <h2 className="text-lg font-black uppercase tracking-wider text-navy mb-8">
-                    {language === 'en' ? 'Why Travel With YAVA?' : 'Chifukwa Chiyani Musankhe YAVA?'}
+                <div className="mx-auto max-w-2xl px-4 sm:px-6 text-center">
+                  <h2 className="text-lg font-black uppercase tracking-wider text-navy mb-8 flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+                    {language === 'en' ? (
+                      <>
+                        <span>Why Travel With</span>
+                        <YavaLogo className="h-5 sm:h-6 w-auto align-middle" navyColor="#0B2E6D" orangeColor="#F15A24" height="100%" />
+                        <span>?</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Chifukwa Chiyani Musankhe</span>
+                        <YavaLogo className="h-5 sm:h-6 w-auto align-middle" navyColor="#0B2E6D" orangeColor="#F15A24" height="100%" />
+                        <span>?</span>
+                      </>
+                    )}
                   </h2>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                    
-                    {/* Secure Booking */}
-                    <div className="flex flex-col items-center space-y-3">
-                      <div className="h-16 w-16 bg-white border border-gray-100 shadow-sm rounded-full flex items-center justify-center text-[#062A73]">
-                        <ShieldCheck className="h-7 w-7 stroke-[1.5]" />
-                      </div>
-                      <h3 className="text-xs font-bold text-navy uppercase tracking-wider">Secure Booking</h3>
-                    </div>
-
-                    {/* Multiple Operators */}
-                    <div className="flex flex-col items-center space-y-3">
-                      <div className="h-16 w-16 bg-white border border-gray-100 shadow-sm rounded-full flex items-center justify-center text-[#062A73]">
-                        <Bus className="h-7 w-7 stroke-[1.5]" />
-                      </div>
-                      <h3 className="text-xs font-bold text-navy uppercase tracking-wider">Multiple Operators</h3>
-                    </div>
-
-                    {/* Instant Tickets */}
-                    <div className="flex flex-col items-center space-y-3">
-                      <div className="h-16 w-16 bg-white border border-gray-100 shadow-sm rounded-full flex items-center justify-center text-[#062A73]">
-                        <Ticket className="h-7 w-7 stroke-[1.5]" />
-                      </div>
-                      <h3 className="text-xs font-bold text-navy uppercase tracking-wider">Instant Tickets</h3>
-                    </div>
-
-                    {/* 24/7 Support */}
-                    <div className="flex flex-col items-center space-y-3">
-                      <div className="h-16 w-16 bg-white border border-gray-100 shadow-sm rounded-full flex items-center justify-center text-[#062A73]">
-                        <Phone className="h-7 w-7 stroke-[1.5]" />
-                      </div>
-                      <h3 className="text-xs font-bold text-navy uppercase tracking-wider">24/7 Support</h3>
-                    </div>
-
+                  <div className="space-y-4 text-left">
+                    {[
+                      {
+                        id: 0,
+                        icon: ShieldCheck,
+                        titleEn: "Secure Booking",
+                        titleNy: "Kusungitsa Motetezeka",
+                        descEn: "We use state-of-the-art secure reservation protocols to guarantee your seat and protect your personal information.",
+                        descNy: "Timagwiritsa ntchito njira zodalirika zotetezedwa kuti titsimikizire mpando wanu komanso kuteteza zambiri zanu."
+                      },
+                      {
+                        id: 1,
+                        icon: Bus,
+                        titleEn: "Multiple Operators",
+                        titleNy: "Makampani Osiyanasiyana",
+                        descEn: "Browse and compare schedules across multiple premium intercity coach operators in Malawi from a single platform.",
+                        descNy: "Sakatulani ndi kufananiza nthawi zoyendera zamakampani osiyanasiyana amabasi m'Malawi pamalo amodzi."
+                      },
+                      {
+                        id: 2,
+                        icon: Ticket,
+                        titleEn: "Instant Tickets",
+                        titleNy: "Matikiti Nthawi Yomweyo",
+                        descEn: "Get instant confirmation and download your boarding request pass immediately. No long physical queues required.",
+                        descNy: "Pezani chitsimikiziro nthawi yomweyo ndipo tsitsani pasipoti yanu. Palibe chifukwa chodikirira pamzere wautali."
+                      },
+                      {
+                        id: 3,
+                        icon: Phone,
+                        titleEn: "24/7 Support",
+                        titleNy: "Thandizo la Maola 24/7",
+                        descEn: "Our customer service dispatch desk and active crew are always available online via WhatsApp to assist your journey.",
+                        descNy: "Othandizira athu komanso ogwira ntchito ali ndi inu nthawi zonse pa WhatsApp kuti akuthandizeni pa ulendo wanu."
+                      }
+                    ].map((item) => {
+                      const IconComponent = item.icon;
+                      const isOpen = openWhyIndex === item.id;
+                      return (
+                        <div 
+                          key={item.id}
+                          className="bg-white border border-gray-200/80 rounded-xl overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.03)] hover:shadow-[0_6px_16px_rgba(0,0,0,0.06)] transition-all duration-200"
+                        >
+                          <button
+                            onClick={() => setOpenWhyIndex(isOpen ? null : item.id)}
+                            className="w-full px-5 py-4 flex items-center justify-between gap-4 font-bold text-navy hover:text-[#FF5A1F] transition-colors cursor-pointer text-left focus:outline-none"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 transition-colors ${isOpen ? 'bg-[#FF5A1F]/10 text-[#FF5A1F]' : 'bg-gray-100 text-[#062A73]'}`}>
+                                <IconComponent className="h-5 w-5 stroke-[1.8]" />
+                              </div>
+                              <span className="text-xs sm:text-sm uppercase tracking-wider">
+                                {language === 'en' ? item.titleEn : item.titleNy}
+                              </span>
+                            </div>
+                            <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-180 text-[#FF5A1F]' : ''}`} />
+                          </button>
+                          
+                          <AnimatePresence initial={false}>
+                            {isOpen && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.25, ease: 'easeInOut' }}
+                                className="overflow-hidden"
+                              >
+                                <div className="px-5 pb-5 pt-1 text-xs sm:text-sm text-gray-600 leading-relaxed border-t border-gray-100/50">
+                                  {language === 'en' ? item.descEn : item.descNy}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </section>
@@ -1097,9 +1162,7 @@ export default function App() {
                   <Bus className="h-8 w-8 stroke-[1.5] animate-pulse" />
                 </div>
                 <div>
-                  <h2 className="serif text-2xl sm:text-3xl font-extrabold tracking-widest text-white uppercase">
-                    YAVA
-                  </h2>
+                  <YavaLogo monoColor="#ffffff" height={30} className="block mx-auto mb-1.5" />
                   <span className="block text-[10px] uppercase tracking-[0.3em] text-gold font-bold">
                     Malawi &bull; Executive Coach
                   </span>

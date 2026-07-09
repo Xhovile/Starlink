@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Menu, X, Phone, Bus, Calendar, Info, MapPin, Lock, Home, CheckSquare, Bell, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
+import YavaLogo from './YavaLogo';
 
 interface HeaderProps {
   currentView: string;
@@ -36,7 +37,7 @@ export default function Header({ currentView, onViewChange, openBookingHistory, 
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full border-b border-gray-100 bg-white text-ink">
+      <header className="sticky top-0 z-50 w-full border-b-2 border-[#F15A24] bg-white text-ink">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           
           {/* Left: Hamburger Menu Icon */}
@@ -57,11 +58,7 @@ export default function Header({ currentView, onViewChange, openBookingHistory, 
               className="flex items-center gap-2 focus:outline-none text-left"
               id="header-logo-btn"
             >
-              <div className="flex flex-col">
-                <span className="serif text-2xl font-black tracking-widest uppercase text-navy leading-none">
-                  YAVA
-                </span>
-              </div>
+              <YavaLogo height={32} />
             </button>
           </div>
 
@@ -94,11 +91,10 @@ export default function Header({ currentView, onViewChange, openBookingHistory, 
 
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="relative flex h-10 w-10 items-center justify-center rounded-full hover:bg-gray-50 text-navy transition-all duration-200 cursor-pointer"
+              className="relative flex h-10 w-10 items-center justify-center rounded-full hover:bg-gray-50 text-gray-400 hover:text-navy transition-all duration-200 cursor-pointer"
               aria-label="Notifications"
             >
               <Bell className="h-5.5 w-5.5 stroke-[2]" />
-              <span className="absolute top-2 right-2 flex h-2 w-2 rounded-full bg-[#FF5A1F]" />
             </button>
 
             {/* Notification Dropdown Box */}
@@ -154,18 +150,8 @@ export default function Header({ currentView, onViewChange, openBookingHistory, 
             >
               {/* Drawer Header */}
               <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-navy text-white shadow-sm">
-                    <Bus className="h-4.5 w-4.5 stroke-[2]" />
-                  </div>
-                  <div>
-                    <span className="serif text-lg font-black tracking-widest uppercase text-navy">
-                      YAVA
-                    </span>
-                    <span className="block text-[8px] uppercase tracking-[0.2em] text-[#FF5A1F] font-bold">
-                      Luxury Travel
-                    </span>
-                  </div>
+                <div className="flex items-center">
+                  <YavaLogo height={28} />
                 </div>
                 <button
                   onClick={() => setMobileMenuOpen(false)}

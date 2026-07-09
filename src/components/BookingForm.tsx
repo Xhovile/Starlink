@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { RouteInfo, BookingRequest, OFFICE_CONTACTS } from '../data';
 import { downloadTicket } from '../utils/ticketDownloader';
 import { useLanguage } from '../context/LanguageContext';
+import YavaLogo from './YavaLogo';
 
 interface BookingFormProps {
   prefilledRoute?: RouteInfo | null;
@@ -243,8 +244,8 @@ Please review and confirm my seat reservation! Thank you.`;
                     <Bus className="h-4.5 w-4.5" />
                   </div>
                   <div>
-                    <span className="serif font-bold tracking-tight text-white block text-sm">YAVA</span>
-                    <span className="text-[9px] uppercase tracking-widest text-gold font-bold block">
+                    <YavaLogo monoColor="#ffffff" height={16} className="block" />
+                    <span className="text-[9px] uppercase tracking-widest text-gold font-bold block mt-1">
                       {language === 'en' ? 'Boarding Request Pass' : 'Pasi Lonyamukira Basi'}
                     </span>
                   </div>

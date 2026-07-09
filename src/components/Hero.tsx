@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Bus, ArrowRight, ShieldCheck, Clock, Award, Star, ArrowLeftRight, Calendar, Users, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
+import YavaLogo from './YavaLogo';
 
 interface HeroProps {
   onNavigateToBooking: (prefill?: { departure: string; destination: string; date: string, passengers: number }) => void;
@@ -71,8 +72,18 @@ export default function Hero({ onNavigateToBooking, onNavigateToSchedule }: Hero
         
         {/* Banner Copy */}
         <div className="relative z-10 max-w-3xl mx-auto space-y-3 sm:space-y-4">
-          <h1 className="serif text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight">
-            {language === 'en' ? 'Book Bus Tickets With YAVA' : 'Sungani Matikiti a Bus a YAVA'}
+          <h1 className="serif text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+            {language === 'en' ? (
+              <>
+                <span>Book Bus Tickets With</span>
+                <YavaLogo className="h-8 sm:h-10 lg:h-12 w-auto align-middle" navyColor="#ffffff" orangeColor="#F15A24" height="100%" />
+              </>
+            ) : (
+              <>
+                <span>Sungani Matikiti a Bus a</span>
+                <YavaLogo className="h-8 sm:h-10 lg:h-12 w-auto align-middle" navyColor="#ffffff" orangeColor="#F15A24" height="100%" />
+              </>
+            )}
           </h1>
           <p className="text-[10px] sm:text-xs font-black tracking-[0.25em] text-[#FF5A1F] uppercase">
             CONNECTING PEOPLE... EVERYWHERE

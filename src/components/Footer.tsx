@@ -1,6 +1,7 @@
 import React from 'react';
 import { Facebook, Twitter, Instagram, Globe } from 'lucide-react';
 import { motion } from 'motion/react';
+import YavaLogo from './YavaLogo';
 
 interface FooterProps {
   onViewChange: (view: string) => void;
@@ -13,7 +14,7 @@ export default function Footer({ onViewChange }: FooterProps) {
   };
 
   return (
-    <footer className="bg-white border-t border-gray-100 py-20 px-4 md:py-24 text-center">
+    <footer className="bg-white border-t-2 border-[#F15A24] py-20 px-4 md:py-24 text-center">
       <div className="mx-auto max-w-[1200px] flex flex-col items-center">
         {/* Animated Brand & Content Container */}
         <motion.div
@@ -29,9 +30,7 @@ export default function Footer({ onViewChange }: FooterProps) {
             className="flex flex-col items-center justify-center focus:outline-none group cursor-pointer"
             id="footer-logo-btn"
           >
-            <span className="serif text-3xl font-black tracking-widest uppercase text-[#062A73] transition-colors group-hover:text-[#FF5A1F] leading-none">
-              YAVA
-            </span>
+            <YavaLogo height={38} className="transform group-hover:scale-105 transition-transform duration-300" />
             <p className="text-[10px] tracking-[0.3em] font-bold text-gray-400 mt-3.5 uppercase leading-none">
               CONNECTING PEOPLE... EVERYWHERE
             </p>
