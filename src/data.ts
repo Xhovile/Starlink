@@ -144,7 +144,7 @@ export const FREQUENT_QUESTIONS = [
 
 export const OFFICE_CONTACTS = {
   phone: '+265 995 44 64 26',
-  whatsapp: '+265 995 44 64 26',
+  whatsapp: '+265 992 94 82 83',
   email: 'bookings@yava.mw',
   blantyre: {
     address: 'Clock Tower Mall, opposite Wenela, Blantyre, Malawi',

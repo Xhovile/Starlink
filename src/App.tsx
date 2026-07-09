@@ -725,7 +725,7 @@ export default function App() {
                     </p>
                   </div>
                   <a
-                    href="https://wa.me/265995446426"
+                    href={`https://wa.me/${OFFICE_CONTACTS.whatsapp.replace(/[^0-9]/g, '')}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all shadow-md shadow-emerald-600/10"

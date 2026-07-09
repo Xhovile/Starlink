@@ -1,5 +1,5 @@
 import React from 'react';
-import { Facebook, Twitter, Instagram, Globe } from 'lucide-react';
+import { Facebook, Twitter, Instagram } from 'lucide-react';
 import { motion } from 'motion/react';
 import YavaLogo from './YavaLogo';
 
@@ -44,7 +44,7 @@ export default function Footer({ onViewChange }: FooterProps) {
           {/* Social Icons (56px square rounded buttons) */}
           <div className="flex items-center justify-center gap-4">
             <a 
-              href="https://facebook.com" 
+              href="https://www.facebook.com/profile.php?id=61585889522658" 
               target="_blank" 
               rel="noopener noreferrer" 
               className="flex h-14 w-14 items-center justify-center rounded-xl bg-white border border-gray-200 text-[#062A73] hover:bg-[#FF5A1F] hover:text-white hover:border-[#FF5A1F] transition-all duration-300 shadow-sm hover:shadow-md cursor-pointer"
@@ -53,7 +53,7 @@ export default function Footer({ onViewChange }: FooterProps) {
               <Facebook className="h-5.5 w-5.5 stroke-[1.75]" />
             </a>
             <a 
-              href="https://instagram.com" 
+              href="https://www.instagram.com/xhovile/?utm_source=ig_web_button_share_sheet" 
               target="_blank" 
               rel="noopener noreferrer" 
               className="flex h-14 w-14 items-center justify-center rounded-xl bg-white border border-gray-200 text-[#062A73] hover:bg-[#FF5A1F] hover:text-white hover:border-[#FF5A1F] transition-all duration-300 shadow-sm hover:shadow-md cursor-pointer"
@@ -69,15 +69,6 @@ export default function Footer({ onViewChange }: FooterProps) {
               aria-label="X (Twitter)"
             >
               <Twitter className="h-5.5 w-5.5 stroke-[1.75]" />
-            </a>
-            <a 
-              href="https://yava.mw" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="flex h-14 w-14 items-center justify-center rounded-xl bg-white border border-gray-200 text-[#062A73] hover:bg-[#FF5A1F] hover:text-white hover:border-[#FF5A1F] transition-all duration-300 shadow-sm hover:shadow-md cursor-pointer"
-              aria-label="Website"
-            >
-              <Globe className="h-5.5 w-5.5 stroke-[1.75]" />
             </a>
           </div>
 
