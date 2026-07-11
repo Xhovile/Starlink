@@ -885,6 +885,9 @@ export default function ManagementPanel() {
                             <td className="py-3.5 px-4">
                               <div className="font-semibold text-ink">{b.departureCity} ➔ {b.destinationCity}</div>
                               <div className="text-[10px] text-[#0b1d3a] font-bold">{b.departureTime}</div>
+                              {b.routeGroup && (
+                                <div className="text-[9px] text-[#FF5A1F] font-bold uppercase mt-1">{b.routeGroup} &bull; {b.destinationDistrict}</div>
+                              )}
                             </td>
                             <td className="py-3.5 px-4 font-medium">{b.travelDate}</td>
                             <td className="py-3.5 px-4 font-bold text-ink text-right">MWK {total.toLocaleString()}</td>
@@ -1021,7 +1024,10 @@ export default function ManagementPanel() {
                               {b.email && <div className="text-[9px] text-ink/40 font-mono">{b.email}</div>}
                             </td>
                             <td className="py-4 px-6 font-semibold whitespace-nowrap">
-                              {b.departureCity} ➔ {b.destinationCity}
+                              <div>{b.departureCity} ➔ {b.destinationCity}</div>
+                              {b.routeGroup && (
+                                <div className="text-[9px] text-[#FF5A1F] font-bold uppercase mt-1">{b.routeGroup} &bull; {b.destinationDistrict}</div>
+                              )}
                             </td>
                             <td className="py-4 px-6">
                               <div className="font-semibold text-ink">{b.travelDate}</div>

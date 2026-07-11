@@ -47,6 +47,33 @@ const LoadingFallback = () => (
   </div>
 );
 
+const OPERATORS_LIST = [
+  {
+    id: 'starlink',
+    name: 'Starlink Tours',
+    slogan: "Malawi's Premium Luxury Highway Cruiser",
+    description: "Starlink Tours provides reliable executive intercity highway transports. Certified speed governors capped strictly at 80km/h, expert long-distance drivers, VIP leather recliners, onboard restrooms, USB chargers, and complimentary satellite internet.",
+    routeGroups: ['M1 Route', 'Lakeshore'],
+    isIntegrated: true,
+  },
+  {
+    id: 'axa',
+    name: 'AXA Coaches',
+    slogan: 'Coming Soon',
+    description: 'Integrating premium intercity schedules between Blantyre and Mzuzu in Phase 2 launch.',
+    routeGroups: ['Lakeshore'],
+    isIntegrated: false,
+  },
+  {
+    id: 'kwezy',
+    name: 'Kwezy Bus Services',
+    slogan: 'Coming Soon',
+    description: 'Integrating modern business class runs between Lilongwe and Mzuzu in upcoming updates.',
+    routeGroups: ['M1 Route'],
+    isIntegrated: false,
+  }
+];
+
 const FeatureIcon = ({ iconName, className }: { iconName: string; className?: string }) => {
   switch (iconName) {
     case 'Wifi':
@@ -96,6 +123,7 @@ export default function App() {
 
   const [activeRoutes, setActiveRoutes] = useState<RouteInfo[]>(MAIN_ROUTES);
   const [operatorSearchQuery, setOperatorSearchQuery] = useState('');
+  const [operatorRouteGroupFilter, setOperatorRouteGroupFilter] = useState<'All' | 'Lakeshore' | 'M1 Route'>('All');
 
   useEffect(() => {
     const loadRoutes = () => {
@@ -832,9 +860,44 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Starlink Tours Active Profile */}
-              <div className="bg-white border border-gray-150 rounded-2xl overflow-hidden shadow-sm mb-6">
-                <div className="h-32 bg-[#062A73] p-6 flex flex-col justify-end text-white relative">
+              {/* Route Group Filter Buttons */}
+              <div className="flex gap-3 mt-4 mb-6">
+                <button
+                  onClick={() => {
+                    setOperatorRouteGroupFilter(
+                      operatorRouteGroupFilter === 'Lakeshore' ? 'All' : 'Lakeshore'
+                    );
+                  }}
+                  className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all duration-300 cursor-pointer text-center ${
+                    operatorRouteGroupFilter === 'Lakeshore'
+                      ? 'bg-[#FF5A1F] text-white border-[#FF5A1F] shadow-md shadow-[#FF5A1F]/15'
+                      : 'bg-white text-[#062A73] border-gray-150 hover:border-gray-300 shadow-sm'
+                  }`}
+                >
+                  Lakeshore
+                </button>
+                <button
+                  onClick={() => {
+                    setOperatorRouteGroupFilter(
+                      operatorRouteGroupFilter === 'M1 Route' ? 'All' : 'M1 Route'
+                    );
+                  }}
+                  className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all duration-300 cursor-pointer text-center ${
+                    operatorRouteGroupFilter === 'M1 Route'
+                      ? 'bg-[#FF5A1F] text-white border-[#FF5A1F] shadow-md shadow-[#FF5A1F]/15'
+                      : 'bg-white text-[#062A73] border-gray-150 hover:border-gray-300 shadow-sm'
+                  }`}
+                >
+                  M1 Route
+                </button>
+              </div>
+
+              {/* Operators List */}
+              <div className="space-y-6">
+                {/* Starlink Tours Active Profile */}
+                {OPERATORS_LIST.filter(op => operatorRouteGroupFilter === 'All' || op.routeGroups.includes(operatorRouteGroupFilter)).some(op => op.id === 'starlink') && (
+                  <div className="bg-white border border-gray-150 rounded-2xl overflow-hidden shadow-sm mb-6">
+                    <div className="h-32 bg-[#062A73] p-6 flex flex-col justify-end text-white relative">
                   <div className="absolute top-4 right-4 bg-[#FF5A1F] text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
                     Fully Integrated
                   </div>
@@ -900,21 +963,44 @@ export default function App() {
                   </div>
                 </div>
               </div>
+            )}
 
-              {/* Inactive Coming Soon Operators */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Coming Soon Operators Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {OPERATORS_LIST.filter(op => operatorRouteGroupFilter === 'All' || op.routeGroups.includes(operatorRouteGroupFilter)).some(op => op.id === 'axa') && (
                 <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 opacity-75">
                   <span className="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-gray-200 text-gray-500 inline-block mb-3">Coming Soon</span>
                   <h3 className="text-base font-black text-gray-500">AXA Coaches</h3>
                   <p className="text-xs text-gray-400 mt-2">Integrating premium intercity schedules between Blantyre and Mzuzu in Phase 2 launch.</p>
+                  <span className="text-[9px] text-[#FF5A1F] uppercase tracking-wider font-bold block mt-3">Route Group: Lakeshore</span>
                 </div>
+              )}
+              {OPERATORS_LIST.filter(op => operatorRouteGroupFilter === 'All' || op.routeGroups.includes(operatorRouteGroupFilter)).some(op => op.id === 'kwezy') && (
                 <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 opacity-75">
                   <span className="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-gray-200 text-gray-500 inline-block mb-3">Coming Soon</span>
                   <h3 className="text-base font-black text-gray-500">Kwezy Bus Services</h3>
                   <p className="text-xs text-gray-400 mt-2">Integrating modern business class runs between Lilongwe and Mzuzu in upcoming updates.</p>
+                  <span className="text-[9px] text-[#FF5A1F] uppercase tracking-wider font-bold block mt-3">Route Group: M1 Route</span>
                 </div>
+              )}
+            </div>
+
+            {OPERATORS_LIST.filter(op => operatorRouteGroupFilter === 'All' || op.routeGroups.includes(operatorRouteGroupFilter)).length === 0 && (
+              <div className="text-center py-12 bg-white border border-dashed border-gray-150 rounded-2xl">
+                <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-xs text-gray-500 font-bold">
+                  No operators found matching the selected route group
+                </p>
+                <button
+                  onClick={() => setOperatorRouteGroupFilter('All')}
+                  className="text-xs text-[#FF5A1F] font-bold mt-1.5 underline cursor-pointer"
+                >
+                  Clear route group filter
+                </button>
               </div>
-            </motion.div>
+            )}
+          </div>
+        </motion.div>
           )}
 
           {currentView === 'profile' && (

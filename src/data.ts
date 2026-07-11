@@ -29,6 +29,8 @@ export interface BookingRequest {
   status: 'Pending Review' | 'Confirmed' | 'Completed';
   createdAt: string;
   departureTime: string;
+  routeGroup?: string;
+  destinationDistrict?: string;
 }
 
 export const MAIN_ROUTES: RouteInfo[] = [

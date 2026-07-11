@@ -8,6 +8,34 @@ import { saveBookingToFirestore } from '../utils/firebaseSync';
 import { useLanguage } from '../context/LanguageContext';
 import YavaLogo from './YavaLogo';
 
+const LAKESHORE_DESTINATIONS = [
+  'Karonga District',
+  'Rumphi District',
+  'Nkhata Bay District',
+  'Nkhotakota District',
+  'Salima District',
+  'Mangochi District',
+  'Likoma District',
+  'Machinga District'
+];
+
+const M1_ROUTE_DESTINATIONS = [
+  'Karonga',
+  'Rumphi',
+  'Mzimba',
+  'Kasungu',
+  'Dowa',
+  'Lilongwe',
+  'Dedza',
+  'Ntcheu',
+  'Balaka',
+  'Machinga',
+  'Zomba',
+  'Blantyre',
+  'Chikwawa',
+  'Nsanje'
+];
+
 interface BookingFormProps {
   prefilledRoute?: RouteInfo | null;
   prefilledQuery?: { departure: string; destination: string; date: string; passengers?: number } | null;
@@ -23,6 +51,8 @@ export default function BookingForm({ prefilledRoute, prefilledQuery, prefilledR
   const [email, setEmail] = useState('');
   const [departureCity, setDepartureCity] = useState<'Blantyre' | 'Lilongwe'>('Blantyre');
   const [destinationCity, setDestinationCity] = useState<'Blantyre' | 'Lilongwe'>('Lilongwe');
+  const [routeGroup, setRouteGroup] = useState<'Lakeshore' | 'M1 Route'>('Lakeshore');
+  const [destinationDistrict, setDestinationDistrict] = useState('Karonga District');
   const [travelDate, setTravelDate] = useState('');
   const [passengers, setPassengers] = useState(1);
   const [serviceClass, setServiceClass] = useState<'Standard' | 'VIP'>('Standard');
@@ -164,6 +194,8 @@ export default function BookingForm({ prefilledRoute, prefilledQuery, prefilledR
             minute: '2-digit'
           }),
           departureTime: departureTimeChoice,
+          routeGroup,
+          destinationDistrict,
         };
 
         // Save to localStorage
@@ -194,7 +226,7 @@ export default function BookingForm({ prefilledRoute, prefilledQuery, prefilledR
 *Passenger:* ${booking.fullName}
 *Phone:* ${booking.phoneNumber}
 *Route:* ${booking.departureCity} ➔ ${booking.destinationCity}
-*Departure:* ${booking.departureTime}
+${booking.routeGroup ? `*Corridor:* ${booking.routeGroup} (${booking.destinationDistrict})\n` : ''}*Departure:* ${booking.departureTime}
 *Date:* ${booking.travelDate}
 *Class:* ${booking.serviceClass} Executive (${booking.serviceClass === 'VIP' ? 'VIP Lounge Class' : 'Standard Luxury'})
 *Seats:* ${booking.passengers} Passenger(s)
@@ -329,6 +361,18 @@ Please review and confirm my seat reservation! Thank you.`;
                         {confirmedBooking.passengers} {language === 'en' ? 'Adult(s)' : 'Mtsikana/Mwamuna'}
                       </span>
                     </div>
+                    {confirmedBooking.routeGroup && (
+                      <div>
+                        <span className="text-[9px] uppercase tracking-wider font-bold text-ink/40 block">Route Corridor</span>
+                        <span className="font-semibold text-ink">{confirmedBooking.routeGroup}</span>
+                      </div>
+                    )}
+                    {confirmedBooking.destinationDistrict && (
+                      <div>
+                        <span className="text-[9px] uppercase tracking-wider font-bold text-ink/40 block">Destination District</span>
+                        <span className="font-semibold text-[#FF5A1F]">{confirmedBooking.destinationDistrict}</span>
+                      </div>
+                    )}
                   </div>
 
                   {confirmedBooking.specialRequests && (
@@ -493,6 +537,47 @@ Please review and confirm my seat reservation! Thank you.`;
                     >
                       <option value="Lilongwe">{language === 'en' ? 'Lilongwe (Area 3 Terminal)' : 'Lilongwe (Area 3 Terminal)'}</option>
                       <option value="Blantyre">{language === 'en' ? 'Blantyre (Wenela Terminal)' : 'Blantyre (Wenela Terminal)'}</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Route Group and Destination District */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
+                  {/* Route Group */}
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-ink/50">
+                      {language === 'en' ? 'Route Group *' : 'Gulu la Mayendedwe *'}
+                    </label>
+                    <select
+                      value={routeGroup}
+                      onChange={(e) => {
+                        const val = e.target.value as 'Lakeshore' | 'M1 Route';
+                        setRouteGroup(val);
+                        // Update default destination district dynamically
+                        setDestinationDistrict(val === 'Lakeshore' ? LAKESHORE_DESTINATIONS[0] : M1_ROUTE_DESTINATIONS[0]);
+                      }}
+                      className="w-full border-b border-ink-fade py-2 text-sm focus:outline-none focus:border-gold bg-transparent text-ink font-semibold rounded-none cursor-pointer"
+                    >
+                      <option value="Lakeshore" className="bg-white text-[#0b1d3a]">Lakeshore</option>
+                      <option value="M1 Route" className="bg-white text-[#0b1d3a]">M1 Route</option>
+                    </select>
+                  </div>
+
+                  {/* Destination District */}
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-ink/50">
+                      {language === 'en' ? 'Destination District *' : 'Boma Lomwe Mukupita *'}
+                    </label>
+                    <select
+                      value={destinationDistrict}
+                      onChange={(e) => setDestinationDistrict(e.target.value)}
+                      className="w-full border-b border-ink-fade py-2 text-sm focus:outline-none focus:border-gold bg-transparent text-ink font-semibold rounded-none cursor-pointer"
+                    >
+                      {(routeGroup === 'Lakeshore' ? LAKESHORE_DESTINATIONS : M1_ROUTE_DESTINATIONS).map((dist) => (
+                        <option key={dist} value={dist} className="bg-white text-[#0b1d3a]">
+                          {dist}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>

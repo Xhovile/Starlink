@@ -175,7 +175,7 @@ Please review and confirm my seat reservation! Thank you.`;
                       </div>
 
                       {/* Row 3: Key variables */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-xs bg-white p-4 border border-ink-fade">
+                      <div className={`grid grid-cols-1 ${booking.routeGroup ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-6 text-xs bg-white p-4 border border-ink-fade`}>
                         <div>
                           <strong className="text-ink/45 font-bold uppercase tracking-wider text-[9px] block mb-1">{t('fullName')}</strong>
                           <span className="font-bold text-sm text-ink">{booking.fullName}</span>
@@ -201,6 +201,17 @@ Please review and confirm my seat reservation! Thank you.`;
                             {booking.serviceClass} Executive Suite
                           </span>
                         </div>
+                        {booking.routeGroup && (
+                          <div>
+                            <strong className="text-ink/45 font-bold uppercase tracking-wider text-[9px] block mb-1">
+                              {language === 'en' ? 'Route & Corridor' : 'Mayendedwe & Corridor'}
+                            </strong>
+                            <span className="font-bold text-sm text-ink">{booking.routeGroup}</span>
+                            <span className="text-[10px] text-[#FF5A1F] block font-semibold mt-0.5">
+                              {booking.destinationDistrict}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Special requests if any */}
