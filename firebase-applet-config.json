@@ -1,11 +1,9 @@
 {
-  "projectId": "caramel-impulse-p3t6m",
-  "appId": "1:15701095090:web:267880beb74c0e22d94fab",
-  "apiKey": "AIzaSyCmDwvSDRWE5ydTxSOmNoIDm6nInXVUAs8",
-  "authDomain": "caramel-impulse-p3t6m.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-starlinktours-1d46e527-0c21-46de-b9a0-8314ba14b19d",
-  "storageBucket": "caramel-impulse-p3t6m.firebasestorage.app",
-  "messagingSenderId": "15701095090",
-  "measurementId": "",
-  "oAuthClientId": "15701095090-pdie92pp87n8t18vamri48btrqhcamtc.apps.googleusercontent.com"
+  "projectId": "campusmarket-da919",
+  "appId": "1:558704099855:web:6aa00e3c75d2a49913597a",
+  "apiKey": "AIzaSyAQLbd4xQwn1iZv9TfDySSCNSKcFCWc1ow",
+  "authDomain": "campusmarket-da919.firebaseapp.com",
+  "storageBucket": "campusmarket-da919.firebasestorage.app",
+  "messagingSenderId": "558704099855",
+  "measurementId": "G-S1WM4MNJC9"
 }
