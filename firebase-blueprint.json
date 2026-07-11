@@ -1,0 +1,73 @@
+{
+  "collections": {
+    "bookings": {
+      "description": "Durable collection tracking passenger travel reservations and boarding requests.",
+      "fields": {
+        "id": {
+          "type": "string",
+          "description": "Unique auto-generated ID for the booking request."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase User UID who placed the reservation."
+        },
+        "fullName": {
+          "type": "string",
+          "description": "Full legal name of the passenger."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "Contact phone number of the passenger."
+        },
+        "email": {
+          "type": "string",
+          "description": "Optional contact email address of the passenger."
+        },
+        "departureCity": {
+          "type": "string",
+          "description": "City of departure (e.g. Blantyre)."
+        },
+        "destinationCity": {
+          "type": "string",
+          "description": "Destination city (e.g. Lilongwe)."
+        },
+        "travelDate": {
+          "type": "string",
+          "description": "Selected travel date (YYYY-MM-DD)."
+        },
+        "passengers": {
+          "type": "number",
+          "description": "Number of seats reserved."
+        },
+        "serviceClass": {
+          "type": "string",
+          "description": "Travel service category (Standard or VIP)."
+        },
+        "isRoundTrip": {
+          "type": "boolean",
+          "description": "Indicates if the trip is round-trip."
+        },
+        "specialRequests": {
+          "type": "string",
+          "description": "Optional custom passenger notes or dietary preferences."
+        },
+        "bookingRef": {
+          "type": "string",
+          "description": "Alpha-numeric ticket dispatch confirmation reference."
+        },
+        "status": {
+          "type": "string",
+          "description": "Verification status: 'Pending Review', 'Confirmed', or 'Completed'."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp string of reservation initiation."
+        },
+        "departureTime": {
+          "type": "string",
+          "description": "Assigned coach departure schedule choice."
+        }
+      }
+    }
+  }
+}

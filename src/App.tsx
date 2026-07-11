@@ -27,6 +27,9 @@ const MyBookings = lazy(() => import('./components/MyBookings'));
 const ManagementPanel = lazy(() => import('./components/ManagementPanel'));
 
 import { RouteInfo, BookingRequest, MAIN_ROUTES, CUSTOMER_TESTIMONIALS, FLEET_FEATURES, OFFICE_CONTACTS } from './data';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './firebase';
+import { syncBookingsWithFirestore, setupBookingsListener } from './utils/firebaseSync';
 
 const LoadingFallback = () => (
   <div className="flex flex-col items-center justify-center min-h-[400px] py-16 text-[#0b1d3a]">
@@ -79,6 +82,7 @@ export default function App() {
   const [prefilledRoundTrip, setPrefilledRoundTrip] = useState<boolean>(false);
   const [bookingCount, setBookingCount] = useState<number>(0);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+  const [user, setUser] = useState<any | null>(null);
   const [openFeatureIndex, setOpenFeatureIndex] = useState<number | null>(0);
   const [openWhyIndex, setOpenWhyIndex] = useState<number | null>(0);
   const [yavaStandardsOpen, setYavaStandardsOpen] = useState<boolean>(false);
@@ -230,6 +234,10 @@ export default function App() {
   };
 
   const navigateTo = (view: string) => {
+    if ((view === 'profile' || view === 'bookings') && !auth.currentUser) {
+      window.dispatchEvent(new CustomEvent('yava-trigger-auth', { detail: { mode: 'login' } }));
+      return;
+    }
     if (view !== currentView) {
       setCurrentView(view);
       window.history.pushState({ view }, '', `?view=${view}`);
@@ -240,20 +248,41 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const view = params.get('view') || 'home';
-    setCurrentView(view);
-    window.history.replaceState({ view }, '', `?view=${view}`);
+    
+    // Wait for auth to be initialized before redirecting away from gated views on reload
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if ((view === 'profile' || view === 'bookings') && !currentUser) {
+        setCurrentView('home');
+        window.history.replaceState({ view: 'home' }, '', `?view=home`);
+      } else {
+        setCurrentView(view);
+        window.history.replaceState({ view }, '', `?view=${view}`);
+      }
+    });
 
     const handlePopState = (event: PopStateEvent) => {
+      let popView = 'home';
       if (event.state && event.state.view) {
-        setCurrentView(event.state.view);
+        popView = event.state.view;
       } else {
         const urlParams = new URLSearchParams(window.location.search);
-        setCurrentView(urlParams.get('view') || 'home');
+        popView = urlParams.get('view') || 'home';
+      }
+      
+      if ((popView === 'profile' || popView === 'bookings') && !auth.currentUser) {
+        window.dispatchEvent(new CustomEvent('yava-trigger-auth', { detail: { mode: 'login' } }));
+        setCurrentView('home');
+        window.history.replaceState({ view: 'home' }, '', `?view=home`);
+      } else {
+        setCurrentView(popView);
       }
     };
 
     window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    return () => {
+      unsubscribe();
+      window.removeEventListener('popstate', handlePopState);
+    };
   }, []);
 
   // Sync Booking Count on Load and after updates
@@ -271,6 +300,35 @@ export default function App() {
     syncBookingCount();
     window.addEventListener('storage', syncBookingCount);
     return () => window.removeEventListener('storage', syncBookingCount);
+  }, []);
+
+  // Firebase Realtime Auth and Bookings Synchronizer
+  useEffect(() => {
+    let unsubscribeBookings: (() => void) | null = null;
+    
+    const unsubscribeAuth = onAuthStateChanged(auth, async (currUser) => {
+      setUser(currUser);
+      if (currUser) {
+        // First merge local cache with Firestore
+        await syncBookingsWithFirestore(currUser.uid);
+        // Then listen to any realtime changes made to bookings in Firestore
+        unsubscribeBookings = setupBookingsListener(currUser.uid, () => {
+          syncBookingCount();
+        });
+      } else {
+        if (unsubscribeBookings) {
+          unsubscribeBookings();
+          unsubscribeBookings = null;
+        }
+      }
+    });
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeBookings) {
+        unsubscribeBookings();
+      }
+    };
   }, []);
 
   const handleNavigateToBooking = (queryPrefill?: { departure: string; destination: string; date: string; passengers?: number }, isRoundTrip: boolean = false) => {
@@ -1070,6 +1128,7 @@ export default function App() {
         navigateTo={navigateTo}
         setPrefilledRoute={setPrefilledRoute}
         setPrefilledQuery={setPrefilledQuery}
+        user={user}
       />
 
       {/* Floating Action Buttons (Bottom Right) */}

@@ -3,6 +3,8 @@ import { Bus, User, Phone, Mail, Calendar, Users, Star, MessageSquare, ArrowRigh
 import { motion } from 'motion/react';
 import { RouteInfo, BookingRequest, OFFICE_CONTACTS } from '../data';
 import { downloadTicket } from '../utils/ticketDownloader';
+import { auth } from '../firebase';
+import { saveBookingToFirestore } from '../utils/firebaseSync';
 import { useLanguage } from '../context/LanguageContext';
 import YavaLogo from './YavaLogo';
 
@@ -169,6 +171,11 @@ export default function BookingForm({ prefilledRoute, prefilledQuery, prefilledR
           const currentBookings = JSON.parse(localStorage.getItem('yava_bookings') || '[]');
           currentBookings.unshift(newBooking);
           localStorage.setItem('yava_bookings', JSON.stringify(currentBookings));
+
+          // Also save to Firestore if user is authenticated
+          if (auth.currentUser) {
+            saveBookingToFirestore(newBooking, auth.currentUser.uid);
+          }
         } catch (err) {
           console.error('Failed to save booking', err);
         }

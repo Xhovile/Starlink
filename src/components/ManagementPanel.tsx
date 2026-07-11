@@ -7,6 +7,8 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { RouteInfo, BookingRequest, MAIN_ROUTES, CUSTOMER_TESTIMONIALS } from '../data';
 import { downloadTicket } from '../utils/ticketDownloader';
+import { collection, onSnapshot, doc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 // Passcode to unlock the admin panel
 const ADMIN_PASSCODE = 'admin';
@@ -53,7 +55,7 @@ export default function ManagementPanel() {
 
   // Sync state on load
   useEffect(() => {
-    // Load Bookings
+    // Load Bookings from local cache first
     const storedBookings = localStorage.getItem('starlink_bookings');
     if (storedBookings) {
       try {
@@ -62,9 +64,47 @@ export default function ManagementPanel() {
         console.error('Failed to parse bookings', e);
       }
     } else {
-      // If none, set an empty list or inject some simulated past bookings
       setBookings([]);
     }
+
+    // Subscribe to Firestore bookings for real-time admin updates!
+    const bookingsRef = collection(db, 'bookings');
+    const unsubscribeBookings = onSnapshot(bookingsRef, (snapshot) => {
+      const allBookings: BookingRequest[] = [];
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        allBookings.push({
+          id: docSnap.id,
+          fullName: data.fullName,
+          phoneNumber: data.phoneNumber,
+          email: data.email,
+          departureCity: data.departureCity,
+          destinationCity: data.destinationCity,
+          travelDate: data.travelDate,
+          passengers: data.passengers,
+          serviceClass: data.serviceClass,
+          isRoundTrip: data.isRoundTrip,
+          specialRequests: data.specialRequests,
+          bookingRef: data.bookingRef,
+          status: data.status,
+          createdAt: data.createdAt,
+          departureTime: data.departureTime,
+        });
+      });
+      // Sort bookings descending
+      allBookings.sort((a, b) => {
+        try {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        } catch {
+          return 0;
+        }
+      });
+      
+      setBookings(allBookings);
+      localStorage.setItem('starlink_bookings', JSON.stringify(allBookings));
+    }, (error) => {
+      console.warn('Could not load Firestore bookings in real-time, running in offline/local mode', error);
+    });
 
     // Load Routes
     const storedRoutes = localStorage.getItem('starlink_routes');
@@ -119,6 +159,10 @@ export default function ManagementPanel() {
     if (authStatus === 'true') {
       setIsAuthenticated(true);
     }
+
+    return () => {
+      unsubscribeBookings();
+    };
   }, []);
 
   // Sync functions
@@ -186,6 +230,15 @@ export default function ManagementPanel() {
     });
 
     saveBookingsState(updated);
+    
+    // Update in Firestore
+    try {
+      const docRef = doc(db, 'bookings', id);
+      updateDoc(docRef, { status: newStatus }).catch(err => console.error("Firestore update error:", err));
+    } catch (e) {
+      console.error(e);
+    }
+
     addAuditLog(
       'Updated Booking Status', 
       `Booking request #${target.bookingRef} (${target.fullName}) updated to [${newStatus}]`, 
@@ -200,6 +253,15 @@ export default function ManagementPanel() {
     if (confirm(`Are you sure you want to permanently delete booking request #${target.bookingRef} for ${target.fullName}?`)) {
       const filtered = bookings.filter(b => b.id !== id);
       saveBookingsState(filtered);
+
+      // Delete from Firestore
+      try {
+        const docRef = doc(db, 'bookings', id);
+        deleteDoc(docRef).catch(err => console.error("Firestore delete error:", err));
+      } catch (e) {
+        console.error(e);
+      }
+
       addAuditLog(
         'Deleted Booking', 
         `Booking request #${target.bookingRef} for ${target.fullName} deleted from database.`, 
@@ -220,6 +282,15 @@ export default function ManagementPanel() {
     });
 
     saveBookingsState(updated);
+
+    // Update in Firestore
+    try {
+      const docRef = doc(db, 'bookings', editingBooking.id);
+      updateDoc(docRef, { ...editingBooking }).catch(err => console.error("Firestore edit error:", err));
+    } catch (e) {
+      console.error(e);
+    }
+
     addAuditLog(
       'Edited Booking', 
       `Booking request #${editingBooking.bookingRef} for ${editingBooking.fullName} was manually edited.`, 
@@ -317,6 +388,19 @@ export default function ManagementPanel() {
 
     const updated = [newBooking, ...bookings];
     saveBookingsState(updated);
+
+    // Write walk-in booking to Firestore
+    try {
+      const docRef = doc(db, 'bookings', newBooking.id);
+      setDoc(docRef, {
+        ...newBooking,
+        userId: 'admin-walk-in',
+        updatedAt: new Date().toISOString()
+      }).catch(err => console.error("Firestore walk-in save error:", err));
+    } catch (err) {
+      console.error("Firestore walk-in error:", err);
+    }
+
     addAuditLog(
       'Walk-In Ticket Issued', 
       `Walk-in Ticket #${reference} issued instantly for ${walkInName} (${walkInPassengers} Seats, ${walkInClass} Class).`, 

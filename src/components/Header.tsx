@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
-import { Menu, X, Home, Bell, User, Settings, LogIn, UserPlus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Menu, X, Home, Bell, User, Settings, LogIn, UserPlus, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
 import YavaLogo from './YavaLogo';
+import { onAuthStateChanged, User as FirebaseUser, signOut } from 'firebase/auth';
+import { auth } from '../firebase';
+import AuthModal from './AuthModal';
+import SettingsModal from './SettingsModal';
 
 interface HeaderProps {
   currentView: string;
@@ -16,10 +20,54 @@ export default function Header({ currentView, onViewChange, openBookingHistory, 
   const [showNotifications, setShowNotifications] = useState(false);
   const { language, setLanguage, t } = useLanguage();
 
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currUser) => {
+      setUser(currUser);
+    });
+
+    const handleTriggerAuth = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const mode = customEvent.detail?.mode || 'login';
+      setAuthModalMode(mode);
+      setAuthModalOpen(true);
+    };
+    window.addEventListener('yava-trigger-auth', handleTriggerAuth);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('yava-trigger-auth', handleTriggerAuth);
+    };
+  }, []);
+
   const handleNavClick = (id: string) => {
     onViewChange(id);
     setMobileMenuOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      setMobileMenuOpen(false);
+    } catch (err) {
+      console.error('Failed to sign out', err);
+    }
+  };
+
+  const openAuth = (mode: 'login' | 'signup') => {
+    setAuthModalMode(mode);
+    setAuthModalOpen(true);
+    setMobileMenuOpen(false);
+  };
+
+  const openSettings = () => {
+    setSettingsModalOpen(true);
+    setMobileMenuOpen(false);
   };
 
   const mockNotifications = [
@@ -97,41 +145,59 @@ export default function Header({ currentView, onViewChange, openBookingHistory, 
                         Account &amp; Tools
                       </div>
 
-                      <button
-                        className="w-full px-3 py-2.5 rounded-lg text-left text-xs font-semibold uppercase tracking-wider text-gray-400 hover:bg-slate-50 transition-all duration-200 flex items-center justify-between cursor-not-allowed"
-                        disabled
-                        aria-label="Settings soon"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Settings className="h-4.5 w-4.5 text-gray-300" />
-                          <span>Settings</span>
+                      {user && (
+                        <div className="px-3 py-2 mb-2 bg-slate-50 rounded-lg border border-gray-100">
+                          <div className="text-[9px] uppercase font-bold text-gray-400 tracking-wider">
+                            Logged In Account
+                          </div>
+                          <div className="text-xs font-bold text-[#0B2E6D] truncate mt-0.5">
+                            {user.displayName || 'Traveler Account'}
+                          </div>
+                          <div className="text-[10px] text-gray-500 truncate">
+                            {user.email}
+                          </div>
                         </div>
-                        <span className="text-[8px] font-bold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded uppercase">Soon</span>
-                      </button>
+                      )}
 
                       <button
-                        className="w-full px-3 py-2.5 rounded-lg text-left text-xs font-semibold uppercase tracking-wider text-gray-400 hover:bg-slate-50 transition-all duration-200 flex items-center justify-between cursor-not-allowed"
-                        disabled
-                        aria-label="Sign In soon"
+                        onClick={openSettings}
+                        className="w-full px-3 py-2.5 rounded-lg text-left text-xs font-semibold uppercase tracking-wider text-[#0B2E6D] hover:bg-slate-100 transition-all duration-200 flex items-center gap-3 cursor-pointer"
+                        aria-label="Settings"
                       >
-                        <div className="flex items-center gap-3">
-                          <LogIn className="h-4.5 w-4.5 text-gray-300" />
-                          <span>Sign In</span>
-                        </div>
-                        <span className="text-[8px] font-bold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded uppercase">Soon</span>
+                        <Settings className="h-4.5 w-4.5 text-[#0B2E6D]" />
+                        <span>Settings</span>
                       </button>
 
-                      <button
-                        className="w-full px-3 py-2.5 rounded-lg text-left text-xs font-semibold uppercase tracking-wider text-gray-400 hover:bg-slate-50 transition-all duration-200 flex items-center justify-between cursor-not-allowed"
-                        disabled
-                        aria-label="Sign Up soon"
-                      >
-                        <div className="flex items-center gap-3">
-                          <UserPlus className="h-4.5 w-4.5 text-gray-300" />
-                          <span>Sign Up</span>
-                        </div>
-                        <span className="text-[8px] font-bold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded uppercase">Soon</span>
-                      </button>
+                      {!user ? (
+                        <>
+                          <button
+                            onClick={() => openAuth('login')}
+                            className="w-full px-3 py-2.5 rounded-lg text-left text-xs font-semibold uppercase tracking-wider text-[#0B2E6D] hover:bg-slate-100 transition-all duration-200 flex items-center gap-3 cursor-pointer"
+                            aria-label="Sign In"
+                          >
+                            <LogIn className="h-4.5 w-4.5 text-[#0B2E6D]" />
+                            <span>Sign In</span>
+                          </button>
+
+                          <button
+                            onClick={() => openAuth('signup')}
+                            className="w-full px-3 py-2.5 rounded-lg text-left text-xs font-semibold uppercase tracking-wider text-[#0B2E6D] hover:bg-slate-100 transition-all duration-200 flex items-center gap-3 cursor-pointer"
+                            aria-label="Sign Up"
+                          >
+                            <UserPlus className="h-4.5 w-4.5 text-[#0B2E6D]" />
+                            <span>Sign Up</span>
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={handleSignOut}
+                          className="w-full px-3 py-2.5 rounded-lg text-left text-xs font-semibold uppercase tracking-wider text-red-600 hover:bg-red-50 transition-all duration-200 flex items-center gap-3 cursor-pointer"
+                          aria-label="Sign Out"
+                        >
+                          <LogOut className="h-4.5 w-4.5 text-red-600" />
+                          <span>Sign Out</span>
+                        </button>
+                      )}
 
                       {/* Mobile Language Selection Quick Grid inside Dropdown */}
                       <div className="border-t border-gray-100 my-2 pt-1.5 px-1.5 block sm:hidden">
@@ -246,6 +312,21 @@ export default function Header({ currentView, onViewChange, openBookingHistory, 
           </div>
         </div>
       </header>
+
+      {/* Firebase Auth & Settings Modals */}
+      <AuthModal 
+        isOpen={authModalOpen} 
+        onClose={() => setAuthModalOpen(false)} 
+        initialMode={authModalMode}
+      />
+      <SettingsModal 
+        isOpen={settingsModalOpen} 
+        onClose={() => setSettingsModalOpen(false)} 
+        onAuthTrigger={() => {
+          setAuthModalMode('login');
+          setAuthModalOpen(true);
+        }}
+      />
     </>
   );
 }

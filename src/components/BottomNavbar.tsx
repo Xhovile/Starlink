@@ -7,17 +7,23 @@ interface BottomNavbarProps {
   navigateTo: (view: string) => void;
   setPrefilledRoute: (route: any) => void;
   setPrefilledQuery: (query: any) => void;
+  user: any;
 }
 
 export default function BottomNavbar({
   currentView,
   navigateTo,
   setPrefilledRoute,
-  setPrefilledQuery
+  setPrefilledQuery,
+  user
 }: BottomNavbarProps) {
   const { language } = useLanguage();
 
   const handleNav = (view: string) => {
+    if ((view === 'bookings' || view === 'profile') && !user) {
+      window.dispatchEvent(new CustomEvent('yava-trigger-auth', { detail: { mode: 'login' } }));
+      return;
+    }
     setPrefilledRoute(null);
     setPrefilledQuery(null);
     navigateTo(view);
