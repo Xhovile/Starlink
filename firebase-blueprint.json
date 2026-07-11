@@ -1,73 +1,226 @@
 {
-  "collections": {
-    "bookings": {
-      "description": "Durable collection tracking passenger travel reservations and boarding requests.",
-      "fields": {
-        "id": {
-          "type": "string",
-          "description": "Unique auto-generated ID for the booking request."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Authenticated Firebase User UID who placed the reservation."
-        },
-        "fullName": {
-          "type": "string",
-          "description": "Full legal name of the passenger."
-        },
-        "phoneNumber": {
-          "type": "string",
-          "description": "Contact phone number of the passenger."
-        },
-        "email": {
-          "type": "string",
-          "description": "Optional contact email address of the passenger."
-        },
-        "departureCity": {
-          "type": "string",
-          "description": "City of departure (e.g. Blantyre)."
-        },
-        "destinationCity": {
-          "type": "string",
-          "description": "Destination city (e.g. Lilongwe)."
-        },
-        "travelDate": {
-          "type": "string",
-          "description": "Selected travel date (YYYY-MM-DD)."
-        },
-        "passengers": {
-          "type": "number",
-          "description": "Number of seats reserved."
-        },
-        "serviceClass": {
-          "type": "string",
-          "description": "Travel service category (Standard or VIP)."
-        },
-        "isRoundTrip": {
-          "type": "boolean",
-          "description": "Indicates if the trip is round-trip."
-        },
-        "specialRequests": {
-          "type": "string",
-          "description": "Optional custom passenger notes or dietary preferences."
-        },
-        "bookingRef": {
-          "type": "string",
-          "description": "Alpha-numeric ticket dispatch confirmation reference."
-        },
-        "status": {
-          "type": "string",
-          "description": "Verification status: 'Pending Review', 'Confirmed', or 'Completed'."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp string of reservation initiation."
-        },
-        "departureTime": {
-          "type": "string",
-          "description": "Assigned coach departure schedule choice."
-        }
-      }
+  "entities": {
+    "Operator": {
+      "title": "Operator",
+      "description": "Represents a bus operator business tenant on the YAVA platform.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "slogan": { "type": "string" },
+        "logo": { "type": "string" },
+        "primaryColor": { "type": "string" },
+        "secondaryColor": { "type": "string" },
+        "phone": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "email": { "type": "string" },
+        "address": { "type": "string" },
+        "policies": { "type": "string" },
+        "rating": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "approved", "suspended"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "status"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Represents platform users, operator admins, or staff with specific roles.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "fullName": { "type": "string" },
+        "role": { "type": "string", "enum": ["platform_admin", "operator_admin", "customer"] },
+        "operatorId": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "email", "role"]
+    },
+    "Route": {
+      "title": "Route",
+      "description": "Represents a transport corridor (e.g., Blantyre -> Lilongwe) template managed by an operator.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "departureCity": { "type": "string" },
+        "destinationCity": { "type": "string" },
+        "duration": { "type": "string" },
+        "operatorId": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "departureCity", "destinationCity", "operatorId"]
+    },
+    "Trip": {
+      "title": "Trip",
+      "description": "Scheduled departure of a specific operator against a route corridor.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "routeId": { "type": "string" },
+        "operatorId": { "type": "string" },
+        "date": { "type": "string" },
+        "departureTime": { "type": "string" },
+        "arrivalTime": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "fareStandard": { "type": "number" },
+        "fareVIP": { "type": "number" },
+        "availableSeats": { "type": "number" },
+        "totalSeats": { "type": "number" },
+        "busType": { "type": "string" },
+        "serviceClass": { "type": "string" },
+        "rating": { "type": "number" },
+        "pickupPoint": { "type": "string" },
+        "dropoffPoint": { "type": "string" },
+        "policies": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "routeId", "operatorId", "date", "departureTime", "fareStandard", "availableSeats"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "A passenger reservation against a specific scheduled operator trip.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "operatorId": { "type": "string" },
+        "tripId": { "type": "string" },
+        "userId": { "type": "string" },
+        "fullName": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "email": { "type": "string" },
+        "passengers": { "type": "number" },
+        "serviceClass": { "type": "string" },
+        "isRoundTrip": { "type": "boolean" },
+        "specialRequests": { "type": "string" },
+        "bookingRef": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending Review", "Confirmed", "Completed"] },
+        "createdAt": { "type": "string" },
+        "travelDate": { "type": "string" },
+        "departureTime": { "type": "string" },
+        "departureCity": { "type": "string" },
+        "destinationCity": { "type": "string" }
+      },
+      "required": ["id", "operatorId", "tripId", "fullName", "phoneNumber", "passengers", "status"]
+    },
+    "Ticket": {
+      "title": "Ticket",
+      "description": "Boarding ticket with verification details, linked to a booking.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "operatorId": { "type": "string" },
+        "tripId": { "type": "string" },
+        "bookingId": { "type": "string" },
+        "ticketId": { "type": "string" },
+        "seatNumber": { "type": "string" },
+        "qrCode": { "type": "string" },
+        "passengerName": { "type": "string" },
+        "validated": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "operatorId", "tripId", "bookingId", "ticketId", "passengerName"]
+    },
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "Physical bus/coach belonging to an operator.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "operatorId": { "type": "string" },
+        "plateNumber": { "type": "string" },
+        "model": { "type": "string" },
+        "seatLayoutId": { "type": "string" },
+        "capacity": { "type": "number" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "operatorId", "plateNumber", "capacity"]
+    },
+    "SeatLayout": {
+      "title": "SeatLayout",
+      "description": "Seating grid configuration for buses.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "operatorId": { "type": "string" },
+        "rows": { "type": "number" },
+        "cols": { "type": "number" },
+        "configuration": { "type": "string" }
+      },
+      "required": ["id", "name", "operatorId"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Transaction details of a passenger booking fee.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "operatorId": { "type": "string" },
+        "bookingId": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "completed", "failed"] },
+        "method": { "type": "string" },
+        "transactionId": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "operatorId", "bookingId", "amount", "status"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Security and operation audit trials for operator and platform logs.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "operatorId": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "category": { "type": "string" },
+        "userId": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "action", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/operators/{operatorId}": {
+      "schema": "Operator",
+      "description": "Bus operators on the platform."
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile with marketplace roles."
+    },
+    "/routes/{routeId}": {
+      "schema": "Route",
+      "description": "Route corridors managed by operators."
+    },
+    "/trips/{tripId}": {
+      "schema": "Trip",
+      "description": "Schedules/departures available for purchase."
+    },
+    "/bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "Bookings against scheduled trips."
+    },
+    "/tickets/{ticketId}": {
+      "schema": "Ticket",
+      "description": "Boarding tickets for verification."
+    },
+    "/vehicles/{vehicleId}": {
+      "schema": "Vehicle",
+      "description": "Operator transport fleet vehicles."
+    },
+    "/seatLayouts/{layoutId}": {
+      "schema": "SeatLayout",
+      "description": "Seating layout configurations."
+    },
+    "/payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Financial payment records."
+    },
+    "/auditLogs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Comprehensive operations and administrative logs."
     }
   }
 }

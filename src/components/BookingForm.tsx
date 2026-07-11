@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Bus, User, Phone, Mail, Calendar, Users, Star, MessageSquare, ArrowRight, CheckCircle2, Ticket, ShieldAlert, ArrowLeftRight, ChevronRight, Printer } from 'lucide-react';
+import { Bus, User, Phone, Mail, Calendar, Users, Star, MessageSquare, ArrowRight, CheckCircle2, Ticket, ShieldAlert, ArrowLeftRight, ChevronRight, Printer, Check, Building2 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { RouteInfo, BookingRequest, OFFICE_CONTACTS } from '../data';
+import { RouteInfo, BookingRequest, OFFICE_CONTACTS, Trip, Operator, CORRIDOR_ROUTES, OPERATORS, getMockTripsForDate } from '../data';
 import { downloadTicket } from '../utils/ticketDownloader';
 import { auth } from '../firebase';
 import { saveBookingToFirestore } from '../utils/firebaseSync';
@@ -36,6 +36,13 @@ const M1_ROUTE_DESTINATIONS = [
   'Nsanje'
 ];
 
+const OPERATOR_ROUTE_GROUPS: Record<string, string[]> = {
+  'op-starlink': ['M1 Route', 'Lakeshore'],
+  'op-kwezy': ['M1 Route'],
+  'op-axa': ['Lakeshore'],
+  'op-sososo': ['M1 Route'],
+};
+
 interface BookingFormProps {
   prefilledRoute?: RouteInfo | null;
   prefilledQuery?: { departure: string; destination: string; date: string; passengers?: number } | null;
@@ -53,18 +60,33 @@ export default function BookingForm({ prefilledRoute, prefilledQuery, prefilledR
   const [destinationCity, setDestinationCity] = useState<'Blantyre' | 'Lilongwe'>('Lilongwe');
   const [routeGroup, setRouteGroup] = useState<'Lakeshore' | 'M1 Route'>('Lakeshore');
   const [destinationDistrict, setDestinationDistrict] = useState('Karonga District');
-  const [travelDate, setTravelDate] = useState('');
+  const [travelDate, setTravelDate] = useState(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split('T')[0];
+  });
   const [passengers, setPassengers] = useState(1);
   const [serviceClass, setServiceClass] = useState<'Standard' | 'VIP'>('Standard');
   const [departureTimeChoice, setDepartureTimeChoice] = useState('07:30 AM (Morning Express)');
   const [specialRequests, setSpecialRequests] = useState('');
   const [isRoundTrip, setIsRoundTrip] = useState(false);
 
+  // Multi-operator trip selection state
+  const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+  const [selectedOperatorId, setSelectedOperatorId] = useState<string>('');
+  const [isOperatorDropdownOpen, setIsOperatorDropdownOpen] = useState(false);
+
   // UI state
   const [submitting, setSubmitting] = useState(false);
   const [confirmedBooking, setConfirmedBooking] = useState<BookingRequest | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [generateActive, setGenerateActive] = useState(false);
+
+  // Field validation highlight states
+  const [operatorHighlight, setOperatorHighlight] = useState(false);
+  const [nameHighlight, setNameHighlight] = useState(false);
+  const [phoneHighlight, setPhoneHighlight] = useState(false);
+  const [dateHighlight, setDateHighlight] = useState(false);
 
   // Set today as minimum selectable date
   const today = new Date().toISOString().split('T')[0];
@@ -79,6 +101,14 @@ export default function BookingForm({ prefilledRoute, prefilledQuery, prefilledR
       setDestinationCity(prefilledRoute.destinationCity);
       setServiceClass(prefilledRoute.busType === 'VIP Club Class' ? 'VIP' : 'Standard');
       setDepartureTimeChoice(`${prefilledRoute.departureTime} (${prefilledRoute.serviceType})`);
+      
+      // Auto-preselect a matching trip from the route info if available
+      const trips = getMockTripsForDate(travelDate || today);
+      const match = trips.find(t => t.departureTime === prefilledRoute.departureTime && t.operatorId === prefilledRoute.operatorId);
+      if (match) {
+        setSelectedTrip(match);
+        setSelectedOperatorId(match.operatorId);
+      }
     } else if (prefilledQuery) {
       if (prefilledQuery.departure === 'Blantyre' || prefilledQuery.departure === 'Lilongwe') {
         setDepartureCity(prefilledQuery.departure as 'Blantyre' | 'Lilongwe');
@@ -100,26 +130,35 @@ export default function BookingForm({ prefilledRoute, prefilledQuery, prefilledR
     const temp = departureCity;
     setDepartureCity(destinationCity);
     setDestinationCity(temp);
+    setSelectedOperatorId('');
+    setSelectedTrip(null); // Reset selected trip on destination change
   };
 
   // Adjust destination if it matches departure
   useEffect(() => {
     if (departureCity === destinationCity) {
       setDestinationCity(departureCity === 'Blantyre' ? 'Lilongwe' : 'Blantyre');
+      setSelectedOperatorId('');
+      setSelectedTrip(null);
     }
   }, [departureCity]);
 
   // Load dynamic routes to calculate fare correctly
   const [routes, setRoutes] = useState<RouteInfo[]>([]);
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('starlink_routes');
-      if (stored) {
-        setRoutes(JSON.parse(stored));
+    const loadRoutes = () => {
+      try {
+        const stored = localStorage.getItem('starlink_routes');
+        if (stored) {
+          setRoutes(JSON.parse(stored));
+        }
+      } catch (e) {
+        console.error(e);
       }
-    } catch (e) {
-      console.error(e);
-    }
+    };
+    loadRoutes();
+    window.addEventListener('storage', loadRoutes);
+    return () => window.removeEventListener('storage', loadRoutes);
   }, []);
 
   // Filter active routes for chosen stations
@@ -141,8 +180,24 @@ export default function BookingForm({ prefilledRoute, prefilledQuery, prefilledR
     (r) => r.departureCity === departureCity && r.destinationCity === destinationCity
   );
 
-  const standardPrice = activeRoute ? activeRoute.fareStandard : 35000;
-  const vipPrice = activeRoute ? activeRoute.fareVIP : 45000;
+  const tripsForDate = getMockTripsForDate(travelDate || today);
+  const matchingTrips = tripsForDate.filter(trip => {
+    const r = CORRIDOR_ROUTES.find(route => route.id === trip.routeId);
+    if (!r) return false;
+    const matchesCity = r.departureCity.toLowerCase() === departureCity.toLowerCase() &&
+                         r.destinationCity.toLowerCase() === destinationCity.toLowerCase();
+    if (!matchesCity) return false;
+
+    const supportedGroups = OPERATOR_ROUTE_GROUPS[trip.operatorId] || [];
+    return supportedGroups.includes(routeGroup);
+  });
+
+  const availableOperators = OPERATORS.filter(op => 
+    ['op-starlink', 'op-kwezy', 'op-axa', 'op-sososo'].includes(op.id)
+  );
+
+  const standardPrice = selectedTrip ? selectedTrip.fareStandard : (activeRoute ? activeRoute.fareStandard : 35000);
+  const vipPrice = selectedTrip ? selectedTrip.fareVIP : (activeRoute ? activeRoute.fareVIP : 45000);
   const basePrice = serviceClass === 'VIP' ? vipPrice : standardPrice;
 
   // Calculate Fare with special 20% round trip discount
@@ -152,15 +207,58 @@ export default function BookingForm({ prefilledRoute, prefilledQuery, prefilledR
   // Potential round trip price for the current class selection to show in the label
   const potentialRoundTripPrice = Math.round(basePrice * 2 * 0.8 / 100) * 100;
 
+  const validateForm = () => {
+    // Reset highlights
+    setOperatorHighlight(false);
+    setNameHighlight(false);
+    setPhoneHighlight(false);
+    setDateHighlight(false);
+
+    if (!travelDate) {
+      setDateHighlight(true);
+      const el = document.getElementById('travel-date-field');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return false;
+    }
+
+    if (!selectedTrip || !selectedOperatorId) {
+      setOperatorHighlight(true);
+      // Automatically open the dropdown so they can see where to select
+      setIsOperatorDropdownOpen(true);
+      const el = document.getElementById('operator-select-field');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return false;
+    }
+
+    if (!fullName) {
+      setNameHighlight(true);
+      const el = document.getElementById('full-name-field');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return false;
+    }
+
+    if (!phoneNumber) {
+      setPhoneHighlight(true);
+      const el = document.getElementById('phone-number-field');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return false;
+    }
+
+    return true;
+  };
+
   // Form submit
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName || !phoneNumber || !travelDate) {
-      if (language === 'en') {
-        alert('Please fill in all required fields (Name, Phone Number, and Travel Date).');
-      } else {
-        alert('Chonde lembani magawo onse ofunikira (Dzina, Nambala ya Foni, ndi Tsiku la Ulendo).');
-      }
+    if (!validateForm()) {
       return;
     }
 
@@ -174,6 +272,9 @@ export default function BookingForm({ prefilledRoute, prefilledQuery, prefilledR
 
         const newBooking: BookingRequest = {
           id: `book-${Date.now()}`,
+          operatorId: selectedTrip ? selectedTrip.operatorId : 'op-starlink',
+          tripId: selectedTrip ? selectedTrip.id : 'trip-starlink-bt-ll-morning',
+          userId: auth.currentUser ? auth.currentUser.uid : 'walk-in',
           fullName,
           phoneNumber,
           email: email || undefined,
@@ -193,7 +294,9 @@ export default function BookingForm({ prefilledRoute, prefilledQuery, prefilledR
             hour: '2-digit',
             minute: '2-digit'
           }),
-          departureTime: departureTimeChoice,
+          departureTime: selectedTrip 
+            ? `${selectedTrip.departureTime} (${selectedTrip.busType})`
+            : departureTimeChoice,
           routeGroup,
           destinationDistrict,
         };
@@ -220,22 +323,25 @@ export default function BookingForm({ prefilledRoute, prefilledQuery, prefilledR
 
   // Generate WhatsApp link
   const getWhatsAppLink = (booking: BookingRequest) => {
+    const operator = OPERATORS.find(op => op.id === booking.operatorId);
+    const operatorName = operator ? operator.name : 'YAVA Marketplace';
     const text = `*YAVA - LUXURY BOOKING REQUEST*
 --------------------------------------------
+*Operator:* ${operatorName}
 *Ticket Ref:* ${booking.bookingRef}
 *Passenger:* ${booking.fullName}
 *Phone:* ${booking.phoneNumber}
 *Route:* ${booking.departureCity} ➔ ${booking.destinationCity}
 ${booking.routeGroup ? `*Corridor:* ${booking.routeGroup} (${booking.destinationDistrict})\n` : ''}*Departure:* ${booking.departureTime}
 *Date:* ${booking.travelDate}
-*Class:* ${booking.serviceClass} Executive (${booking.serviceClass === 'VIP' ? 'VIP Lounge Class' : 'Standard Luxury'})
+*Class:* ${booking.serviceClass} Executive
 *Seats:* ${booking.passengers} Passenger(s)
-*Total Fare:* MWK ${ (booking.passengers * (booking.serviceClass === 'VIP' ? 45000 : 35000)).toLocaleString() }
+*Total Fare:* MWK ${ (booking.passengers * (booking.serviceClass === 'VIP' ? vipPrice : standardPrice)).toLocaleString() }
 ${booking.specialRequests ? `*Special Request:* ${booking.specialRequests}` : ''}
 --------------------------------------------
 Please review and confirm my seat reservation! Thank you.`;
 
-    const cleanPhone = OFFICE_CONTACTS.whatsapp.replace(/[^0-9]/g, '');
+    const cleanPhone = operator ? operator.whatsapp.replace(/[^0-9]/g, '') : OFFICE_CONTACTS.whatsapp.replace(/[^0-9]/g, '');
     return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
   };
 
@@ -532,7 +638,11 @@ Please review and confirm my seat reservation! Thank you.`;
                     </label>
                     <select
                       value={destinationCity}
-                      onChange={(e) => setDestinationCity(e.target.value as 'Blantyre' | 'Lilongwe')}
+                      onChange={(e) => {
+                        setDestinationCity(e.target.value as 'Blantyre' | 'Lilongwe');
+                        setSelectedOperatorId('');
+                        setSelectedTrip(null);
+                      }}
                       className="w-full border-b border-ink-fade py-2 text-sm focus:outline-none focus:border-gold bg-transparent text-ink font-semibold rounded-none"
                     >
                       <option value="Lilongwe">{language === 'en' ? 'Lilongwe (Area 3 Terminal)' : 'Lilongwe (Area 3 Terminal)'}</option>
@@ -555,6 +665,8 @@ Please review and confirm my seat reservation! Thank you.`;
                         setRouteGroup(val);
                         // Update default destination district dynamically
                         setDestinationDistrict(val === 'Lakeshore' ? LAKESHORE_DESTINATIONS[0] : M1_ROUTE_DESTINATIONS[0]);
+                        setSelectedOperatorId('');
+                        setSelectedTrip(null);
                       }}
                       className="w-full border-b border-ink-fade py-2 text-sm focus:outline-none focus:border-gold bg-transparent text-ink font-semibold rounded-none cursor-pointer"
                     >
@@ -584,7 +696,7 @@ Please review and confirm my seat reservation! Thank you.`;
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
                   {/* Travel Date */}
-                  <div className="space-y-1">
+                  <div id="travel-date-field" className={`space-y-1 p-2 transition-all duration-300 ${dateHighlight ? 'bg-red-50 border border-red-500 rounded' : ''}`}>
                     <label className="block text-[10px] font-bold uppercase tracking-widest text-ink/50">
                       {t('travelDate')} *
                     </label>
@@ -592,7 +704,12 @@ Please review and confirm my seat reservation! Thank you.`;
                       <input
                         type="date"
                         value={travelDate}
-                        onChange={(e) => setTravelDate(e.target.value)}
+                        onChange={(e) => {
+                          setTravelDate(e.target.value);
+                          setDateHighlight(false);
+                          setSelectedOperatorId('');
+                          setSelectedTrip(null); // Reset chosen trip when date is changed
+                        }}
                         min={today}
                         required
                         className="w-full border-b border-ink-fade py-2 pl-8 text-sm focus:outline-none focus:border-gold bg-transparent text-ink font-semibold rounded-none"
@@ -601,239 +718,365 @@ Please review and confirm my seat reservation! Thank you.`;
                     </div>
                   </div>
 
-                  {/* Departure time slot preference */}
-                  <div className="space-y-1">
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-ink/50">
-                      {language === 'en' ? 'Departure Time Preference *' : 'Nthawi Yomwe Mukufuna *'}
-                    </label>
-                    <select
-                      value={departureTimeChoice}
-                      onChange={(e) => setDepartureTimeChoice(e.target.value)}
-                      className="w-full border-b border-ink-fade py-2 text-sm focus:outline-none focus:border-gold bg-transparent text-ink font-semibold rounded-none"
-                    >
-                      {matchingRoutes.length > 0 ? (
-                        matchingRoutes.map((r) => (
-                          <option key={r.id} value={`${r.departureTime} (${r.serviceType})`}>
-                            {r.departureTime} ({r.serviceType})
-                          </option>
-                        ))
-                      ) : (
-                        <>
-                          <option value="07:30 AM (Morning Express)">07:30 AM (Morning Express)</option>
-                          <option value="01:30 PM (Afternoon Executive)">01:30 PM (Afternoon Executive)</option>
-                        </>
-                      )}
-                    </select>
+                  {/* Quick corridor info label instead of simple select */}
+                  <div className="space-y-1 flex flex-col justify-end pb-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-ink/40">Active corridor</span>
+                    <span className="text-xs font-black text-gold flex items-center gap-1">
+                      <Bus className="h-3.5 w-3.5" />
+                      {departureCity} ➔ {destinationCity} {routeGroup === 'Lakeshore' ? 'Lakeshore Road' : 'M1 Highway'}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Step 2: Passenger Details */}
-              <div className="space-y-4">
+              {/* Step 1b: Choose Operator Trip & Comparison */}
+              <div className="space-y-4 pt-4 border-t border-ink-fade">
                 <h3 className="serif text-xs font-bold uppercase tracking-widest text-black border-b border-ink-fade pb-2">
-                  {language === 'en' ? '02. Passenger Information' : '02. Zambiri za Passenger'}
+                  {language === 'en' ? '01b. Select Operator Departure & Compare' : '01b. Sankhani Basi ndi Mtengo'}
                 </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {/* Name */}
-                  <div className="space-y-1">
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-ink/50">
-                      {t('fullName')} *
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder={language === 'en' ? 'e.g. Chikondi Phiri' : 'chitsanzo: Chikondi Phiri'}
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        required
-                        className="w-full border-b border-ink-fade py-2 pl-8 text-sm focus:outline-none focus:border-gold bg-transparent text-ink font-semibold rounded-none"
-                      />
-                      <User className="absolute left-0 top-3 h-4 w-4 text-gold" />
-                    </div>
-                  </div>
-
-                  {/* Phone */}
-                  <div className="space-y-1">
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-ink/50">
-                      {t('phoneNumber')} *
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="tel"
-                        placeholder={language === 'en' ? 'e.g. +265 888 123 456' : 'chitsanzo: +265 888 123 456'}
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        required
-                        className="w-full border-b border-ink-fade py-2 pl-8 text-sm focus:outline-none focus:border-gold bg-transparent text-ink font-semibold rounded-none"
-                      />
-                      <Phone className="absolute left-0 top-3 h-4 w-4 text-gold" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Email (Optional) */}
-                <div className="space-y-1 pt-2">
+                
+                {/* Custom dropdown for available operators */}
+                <div id="operator-select-field" className={`space-y-2 transition-all duration-300 ${operatorHighlight ? 'bg-red-50 border border-red-500 rounded p-2 animate-pulse' : ''}`}>
                   <label className="block text-[10px] font-bold uppercase tracking-widest text-ink/50">
-                    {t('emailAddress')}
+                    {language === 'en' ? 'Select Bus Operator *' : 'Sankhani Kampani ya Basi *'}
                   </label>
                   <div className="relative">
-                    <input
-                      type="email"
-                      placeholder={language === 'en' ? 'e.g. chikondi@example.com' : 'chitsanzo: chikondi@example.com'}
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full border-b border-ink-fade py-2 pl-8 text-sm focus:outline-none focus:border-gold bg-transparent text-ink font-semibold rounded-none"
-                    />
-                    <Mail className="absolute left-0 top-3 h-4 w-4 text-gold" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Step 3: Class & Seats */}
-              <div className="space-y-4">
-                <h3 className="serif text-xs font-bold uppercase tracking-widest text-black border-b border-ink-fade pb-2">
-                  {language === 'en' ? '03. Travel Class & Seat Capacity' : '03. Gulu la Ulendo ndi Mipando'}
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {/* Number of passengers */}
-                  <div className="space-y-1">
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-ink/50">
-                      {language === 'en' ? 'Number of Seats / Passengers *' : 'Chiwerengero cha Mipando / Anthu *'}
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={passengers}
-                        onChange={(e) => setPassengers(Number(e.target.value))}
-                        className="w-full border-b border-ink-fade py-2 pl-8 text-sm focus:outline-none focus:border-gold bg-transparent text-ink font-semibold rounded-none"
-                      >
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                          <option key={num} value={num}>
-                            {num} {language === 'en' ? `seat${num > 1 ? 's' : ''}` : `mando ${num > 1 ? 'yambiri' : ''}`}
-                          </option>
-                        ))}
-                      </select>
-                      <Users className="absolute left-0 top-3 h-4 w-4 text-gold" />
-                    </div>
-                  </div>
-
-                  {/* Seat Class Selection */}
-                  <div className="space-y-2">
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-ink/50">
-                      {t('serviceClass')} *
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        disabled={isRoundTrip}
-                        onClick={() => setServiceClass('Standard')}
-                        className={`py-2 px-4 rounded-none border text-[10px] font-bold uppercase tracking-wider transition-all ${
-                          isRoundTrip 
-                            ? 'bg-paper text-ink/30 border-ink-fade cursor-not-allowed'
-                            : serviceClass === 'Standard'
-                              ? 'bg-ink text-white border-ink cursor-pointer'
-                              : 'bg-white text-ink/60 border-ink-fade hover:bg-paper cursor-pointer'
-                        }`}
-                      >
-                        {language === 'en' ? `Standard Luxury (${Math.round(standardPrice / 1000)}K)` : `Luxury Tsiku Lomwe (${Math.round(standardPrice / 1000)}K)`}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isRoundTrip}
-                        onClick={() => setServiceClass('VIP')}
-                        className={`py-2 px-4 rounded-none border text-[10px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
-                          isRoundTrip
-                            ? 'bg-paper text-ink/30 border-ink-fade cursor-not-allowed'
-                            : serviceClass === 'VIP'
-                              ? 'bg-gold text-white border-gold shadow-sm cursor-pointer'
-                              : 'bg-white text-ink/60 border-ink-fade hover:bg-paper cursor-pointer'
-                        }`}
-                      >
-                        <Star className="h-3 w-3" />
-                        {language === 'en' ? `VIP Club (${Math.round(vipPrice / 1000)}K)` : `Gulu la VIP (${Math.round(vipPrice / 1000)}K)`}
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsOperatorDropdownOpen(!isOperatorDropdownOpen);
+                        setOperatorHighlight(false);
+                      }}
+                      className={`w-full bg-white border px-4 py-3 text-left text-sm font-semibold flex items-center justify-between rounded-none focus:outline-none focus:border-gold cursor-pointer transition-all duration-300 ${
+                        operatorHighlight ? 'border-red-500 shadow-[0_0_12px_rgba(239,68,68,0.3)]' : 'border-ink-fade'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        {selectedOperatorId ? (
+                          <>
+                            <span className="text-lg">
+                              {OPERATORS.find(o => o.id === selectedOperatorId)?.logo}
+                            </span>
+                            <span className="text-ink font-bold">
+                              {OPERATORS.find(o => o.id === selectedOperatorId)?.name}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-ink/40 font-medium">
+                            {language === 'en' ? '-- Select an Operator to View Fares & Bus --' : '-- Sankhani Kampani ya Basi kuti muwone Mitengo --'}
+                          </span>
+                        )}
+                      </span>
+                      <ChevronRight className={`h-4 w-4 text-gold transform transition-transform ${isOperatorDropdownOpen ? 'rotate-90' : ''}`} />
+                    </button>
                     
-                    <div className="mt-3 flex items-center">
-                      <label className="flex items-center gap-2 cursor-pointer p-2 bg-paper border border-ink-fade w-full justify-center">
-                        <input 
-                          type="checkbox" 
-                          checked={isRoundTrip} 
-                          onChange={(e) => setIsRoundTrip(e.target.checked)}
-                          className="accent-gold w-4 h-4 cursor-pointer"
-                        />
-                        <span className="text-[11px] font-bold uppercase tracking-widest text-gold">
-                          {t('roundTrip')} ({Math.round(potentialRoundTripPrice / 1000)}K)
-                        </span>
-                      </label>
-                    </div>
+                    {isOperatorDropdownOpen && (
+                      <div className="absolute z-10 w-full bg-white border border-ink-fade mt-1 shadow-lg rounded-none max-h-60 overflow-y-auto">
+                        {availableOperators.length === 0 ? (
+                          <div className="px-4 py-3 text-xs text-ink/50 italic">
+                            {language === 'en' ? 'No operators available for this route/date/group.' : 'Palibe mabasi pa tsiku limeneli.'}
+                          </div>
+                        ) : (
+                          availableOperators.map((op) => (
+                            <button
+                              key={op.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedOperatorId(op.id);
+                                setOperatorHighlight(false);
+                                let trip = matchingTrips.find(t => t.operatorId === op.id);
+                                if (!trip) {
+                                  // Generate dynamic fallback trip for this operator
+                                  const depTime = op.id === 'op-kwezy' ? '08:00 AM' : op.id === 'op-axa' ? '09:30 PM' : op.id === 'op-sososo' ? '01:30 PM' : '07:00 AM';
+                                  const arrTime = op.id === 'op-kwezy' ? '12:30 PM' : op.id === 'op-axa' ? '02:00 AM' : op.id === 'op-sososo' ? '06:00 PM' : '11:30 AM';
+                                  const busName = op.id === 'op-kwezy' ? 'Volvo Irizar i6 Elite' : op.id === 'op-axa' ? 'Scania Touring HD' : op.id === 'op-sososo' ? 'Yutong F12 Comfort' : 'Scania Marcopolo G8 Luxury';
+                                  trip = {
+                                    id: `trip-fallback-${op.id}-${travelDate || today}`,
+                                    routeId: activeRoute?.id || (departureCity === 'Blantyre' ? 'route-star-bt-ll' : 'route-star-ll-bt'),
+                                    operatorId: op.id,
+                                    date: travelDate || today,
+                                    departureTime: depTime,
+                                    arrivalTime: arrTime,
+                                    vehicleId: op.id === 'op-kwezy' ? 'veh-kwezy-1' : op.id === 'op-axa' ? 'veh-axa-1' : op.id === 'op-sososo' ? 'veh-soso-1' : 'veh-star-1',
+                                    fareStandard: op.id === 'op-kwezy' ? 32000 : op.id === 'op-axa' ? 30000 : op.id === 'op-sososo' ? 33000 : 35000,
+                                    fareVIP: op.id === 'op-kwezy' ? 42000 : op.id === 'op-axa' ? 40000 : op.id === 'op-sososo' ? 43000 : 45000,
+                                    availableSeats: 35,
+                                    totalSeats: 52,
+                                    busType: busName,
+                                    serviceClass: op.id === 'op-axa' ? 'Night Express' : 'Daily Express',
+                                    rating: op.id === 'op-kwezy' ? 4.8 : op.id === 'op-axa' ? 4.7 : op.id === 'op-sososo' ? 4.6 : 4.9,
+                                    pickupPoint: op.id === 'op-kwezy' ? 'Wenela Terminal Gate, Blantyre' : op.id === 'op-axa' ? 'Limbe Transit Depot, Limbe' : op.id === 'op-sososo' ? 'Wenela Bus Terminal Area, Blantyre' : 'Clock Tower Mall, Blantyre',
+                                    dropoffPoint: 'Grand Business Park, Lilongwe',
+                                    policies: 'Standard carrier terms apply. Fully air-conditioned.',
+                                    status: 'scheduled'
+                                  };
+                                }
+                                setSelectedTrip(trip);
+                                setServiceClass('Standard'); // Reset service class to Standard
+                                setIsOperatorDropdownOpen(false);
+                              }}
+                              className="w-full px-4 py-3 text-left text-sm font-medium hover:bg-gold/10 text-ink flex items-center gap-3 border-b border-gray-50 last:border-b-0 cursor-pointer"
+                            >
+                              <span className="text-xl">{op.logo}</span>
+                              <div className="flex-1">
+                                <div className="font-bold text-ink">{op.name}</div>
+                                <div className="text-[10px] text-ink/50 italic">{op.slogan}</div>
+                              </div>
+                              {selectedOperatorId === op.id && (
+                                <Check className="h-4 w-4 text-gold shrink-0" />
+                              )}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Special Requests */}
-                <div className="space-y-1 pt-2">
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-ink/50">
-                    {t('specialRequests')}
-                  </label>
-                  <textarea
-                    rows={2}
-                    placeholder={language === 'en' ? 'e.g. Elderly passenger, wheelchair assistance, extra luggage, window seats' : 'chitsanzo: Okalamba, kuthandizidwa pa njinga yamavuto, katundu wambiri, window seat'}
-                    value={specialRequests}
-                    onChange={(e) => setSpecialRequests(e.target.value)}
-                    className="w-full border-b border-ink-fade py-2 text-sm focus:outline-none focus:border-gold bg-transparent text-ink font-semibold rounded-none resize-none"
-                  ></textarea>
-                </div>
+                {/* Operator info card displayed only when selected */}
+                {selectedTrip && (
+                  <div className="bg-[#eedfc8]/20 border border-gold/40 p-5 rounded-none flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-4 animate-fadeIn animate-duration-300">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">{OPERATORS.find(o => o.id === selectedTrip.operatorId)?.logo || '✨'}</span>
+                        <h4 className="serif font-bold text-ink text-base">
+                          {OPERATORS.find(o => o.id === selectedTrip.operatorId)?.name || 'Operator'}
+                        </h4>
+                        <span className="text-[10px] bg-gold/20 text-ink font-bold px-2.5 py-0.5 uppercase tracking-wider">Selected</span>
+                      </div>
+                      <p className="text-xs text-ink/75 mt-2">
+                        <strong>{selectedTrip.busType}</strong> • {selectedTrip.serviceClass} at <strong className="text-gold">{selectedTrip.departureTime}</strong> (Arrives {selectedTrip.arrivalTime})
+                      </p>
+                      <div className="flex gap-4 mt-2.5 text-xs font-bold text-ink/70">
+                        <span>Standard: <strong className="text-ink">MWK {selectedTrip.fareStandard.toLocaleString()}</strong></span>
+                        <span>VIP: <strong className="text-gold">MWK {selectedTrip.fareVIP.toLocaleString()}</strong></span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedTrip(null);
+                        setSelectedOperatorId('');
+                      }}
+                      className="py-2 px-3.5 border border-ink text-ink hover:bg-ink hover:text-white transition-colors text-[10px] font-bold uppercase tracking-widest cursor-pointer shrink-0"
+                    >
+                      Change Operator
+                    </button>
+                  </div>
+                )}
               </div>
 
-              {/* Estimated Pricing Summary Card */}
-              <div className="bg-ink text-paper p-6 rounded-none flex items-center justify-between border border-ink-fade">
-                <div>
-                  <span className="block text-[8px] text-paper/50 uppercase font-bold tracking-widest">
-                    {language === 'en' ? 'Estimated Total' : 'Mtengo Wonse'}
-                  </span>
-                  <span className="serif text-2xl font-bold text-gold">
-                    MWK {totalFare.toLocaleString()}
-                  </span>
-                </div>
-                <div className="text-right text-[10px] text-paper/70 max-w-[200px] leading-relaxed">
-                  <span>
-                    {passengers} x {serviceClass} {language === 'en' ? 'Class Seat(s) on M1 Express Highway' : 'Malo mu Basi pa Msewu wa M1'}
-                  </span>
-                </div>
-              </div>
+              {/* Reveal Passenger details and Capacity selections only AFTER trip is selected */}
+              {selectedTrip && (
+                <>
+                  {/* Step 2: Passenger Details */}
+                  <div className="space-y-4 pt-4 border-t border-ink-fade">
+                    <h3 className="serif text-xs font-bold uppercase tracking-widest text-black border-b border-ink-fade pb-2">
+                      {language === 'en' ? '02. Passenger Information' : '02. Zambiri za Passenger'}
+                    </h3>
 
-              {/* Form submit buttons */}
-              <div className="pt-4 space-y-3">
-                <button
-                  type="button"
-                  onClick={() => setShowPaymentModal(true)}
-                  className="w-full py-4 rounded-none bg-ink text-white hover:bg-gold font-bold uppercase tracking-[0.2em] text-xs transition-colors duration-300 flex items-center justify-center cursor-pointer shadow-md"
-                >
-                  {language === 'en' ? 'Pay Booking Fee' : 'Lipirani Mtengo wa Ulendo'}
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting || !generateActive}
-                  className={`w-full py-4 rounded-none font-bold uppercase tracking-[0.2em] text-xs transition-all duration-300 flex items-center justify-center gap-2 ${
-                    submitting || !generateActive 
-                      ? 'bg-ink-fade text-ink/50 cursor-not-allowed' 
-                      : 'bg-gold hover:bg-ink text-white shadow-md cursor-pointer hover:scale-[1.01]'
-                  }`}
-                >
-                  {submitting ? (
-                    <>
-                      <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                      <span>{t('processing')}</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>{language === 'en' ? 'Generate Boarding Ticket' : 'Pangani Tikiti ya Ulendo'}</span>
-                      <ArrowRight className="h-4 w-4" />
-                    </>
-                  )}
-                </button>
-              </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      {/* Name */}
+                      <div className="space-y-1">
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-ink/50">
+                          {t('fullName')} *
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            placeholder={language === 'en' ? 'e.g. Chikondi Phiri' : 'chitsanzo: Chikondi Phiri'}
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value)}
+                            required
+                            className="w-full border-b border-ink-fade py-2 pl-8 text-sm focus:outline-none focus:border-gold bg-transparent text-ink font-semibold rounded-none"
+                          />
+                          <User className="absolute left-0 top-3 h-4 w-4 text-gold" />
+                        </div>
+                      </div>
+
+                      {/* Phone */}
+                      <div className="space-y-1">
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-ink/50">
+                          {t('phoneNumber')} *
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="tel"
+                            placeholder={language === 'en' ? 'e.g. +265 888 123 456' : 'chitsanzo: +265 888 123 456'}
+                            value={phoneNumber}
+                            onChange={(e) => setPhoneNumber(e.target.value)}
+                            required
+                            className="w-full border-b border-ink-fade py-2 pl-8 text-sm focus:outline-none focus:border-gold bg-transparent text-ink font-semibold rounded-none"
+                          />
+                          <Phone className="absolute left-0 top-3 h-4 w-4 text-gold" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Email (Optional) */}
+                    <div className="space-y-1 pt-2">
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-ink/50">
+                        {t('emailAddress')}
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="email"
+                          placeholder={language === 'en' ? 'e.g. chikondi@example.com' : 'chitsanzo: chikondi@example.com'}
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="w-full border-b border-ink-fade py-2 pl-8 text-sm focus:outline-none focus:border-gold bg-transparent text-ink font-semibold rounded-none"
+                        />
+                        <Mail className="absolute left-0 top-3 h-4 w-4 text-gold" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 3: Class & Seats */}
+                  <div className="space-y-4 pt-4 border-t border-ink-fade">
+                    <h3 className="serif text-xs font-bold uppercase tracking-widest text-black border-b border-ink-fade pb-2">
+                      {language === 'en' ? '03. Travel Class & Seat Capacity' : '03. Gulu la Ulendo ndi Mipando'}
+                    </h3>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      {/* Number of passengers */}
+                      <div className="space-y-1">
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-ink/50">
+                          {language === 'en' ? 'Number of Seats / Passengers *' : 'Chiwerengero cha Mipando / Anthu *'}
+                        </label>
+                        <div className="relative">
+                          <select
+                            value={passengers}
+                            onChange={(e) => setPassengers(Number(e.target.value))}
+                            className="w-full border-b border-ink-fade py-2 pl-8 text-sm focus:outline-none focus:border-gold bg-transparent text-ink font-semibold rounded-none font-bold"
+                          >
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                              <option key={num} value={num} className="text-ink">
+                                {num} {language === 'en' ? `seat${num > 1 ? 's' : ''}` : `mando ${num > 1 ? 'yambiri' : ''}`}
+                              </option>
+                            ))}
+                          </select>
+                          <Users className="absolute left-0 top-3 h-4 w-4 text-gold" />
+                        </div>
+                      </div>
+
+                      {/* Seat Class Selection */}
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-ink/50">
+                          {t('serviceClass')} *
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            disabled={isRoundTrip}
+                            onClick={() => setServiceClass('Standard')}
+                            className={`py-2 px-4 rounded-none border text-[10px] font-bold uppercase tracking-wider transition-all ${
+                              isRoundTrip 
+                                ? 'bg-paper text-ink/30 border-ink-fade cursor-not-allowed'
+                                : serviceClass === 'Standard'
+                                  ? 'bg-ink text-white border-ink cursor-pointer'
+                                  : 'bg-white text-ink/60 border-ink-fade hover:bg-paper cursor-pointer'
+                            }`}
+                          >
+                            {language === 'en' ? `Standard Luxury (${Math.round(standardPrice / 1000)}K)` : `Luxury Tsiku Lomwe (${Math.round(standardPrice / 1000)}K)`}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isRoundTrip}
+                            onClick={() => setServiceClass('VIP')}
+                            className={`py-2 px-4 rounded-none border text-[10px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
+                              isRoundTrip
+                                ? 'bg-paper text-ink/30 border-ink-fade cursor-not-allowed'
+                                : serviceClass === 'VIP'
+                                  ? 'bg-gold text-white border-gold shadow-sm cursor-pointer'
+                                  : 'bg-white text-ink/60 border-ink-fade hover:bg-paper cursor-pointer'
+                            }`}
+                          >
+                            <Star className="h-3 w-3" />
+                            {language === 'en' ? `VIP Club (${Math.round(vipPrice / 1000)}K)` : `Gulu la VIP (${Math.round(vipPrice / 1000)}K)`}
+                          </button>
+                        </div>
+                        
+                        <div className="mt-3 flex items-center">
+                          <label className="flex items-center gap-2 cursor-pointer p-2 bg-paper border border-ink-fade w-full justify-center">
+                            <input 
+                              type="checkbox" 
+                              checked={isRoundTrip} 
+                              onChange={(e) => setIsRoundTrip(e.target.checked)}
+                              className="accent-gold w-4 h-4 cursor-pointer"
+                            />
+                            <span className="text-[11px] font-bold uppercase tracking-widest text-gold">
+                              {t('roundTrip')} ({Math.round(potentialRoundTripPrice / 1000)}K)
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Special Requests */}
+                    <div className="space-y-1 pt-2">
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-ink/50">
+                        {t('specialRequests')}
+                      </label>
+                      <textarea
+                        rows={2}
+                        placeholder={language === 'en' ? 'e.g. Elderly passenger, wheelchair assistance, extra luggage, window seats' : 'chitsanzo: Okalamba, kuthandizidwa pa njinga yamavuto, katundu wambiri, window seat'}
+                        value={specialRequests}
+                        onChange={(e) => setSpecialRequests(e.target.value)}
+                        className="w-full border-b border-ink-fade py-2 text-sm focus:outline-none focus:border-gold bg-transparent text-ink font-semibold rounded-none resize-none"
+                      ></textarea>
+                    </div>
+                  </div>
+
+                  {/* Estimated Pricing Summary Card */}
+                  <div className="bg-ink text-paper p-6 rounded-none flex items-center justify-between border border-ink-fade">
+                    <div>
+                      <span className="block text-[8px] text-paper/50 uppercase font-bold tracking-widest">
+                        {language === 'en' ? 'Estimated Total' : 'Mtengo Wonse'}
+                      </span>
+                      <span className="serif text-2xl font-bold text-gold">
+                        MWK {totalFare.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="text-right text-[10px] text-paper/70 max-w-[200px] leading-relaxed">
+                      <span>
+                        {passengers} x {serviceClass} {language === 'en' ? 'Class Seat(s) on M1 Express Highway' : 'Malo mu Basi pa Msewu wa M1'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Form submit buttons */}
+                  <div className="pt-4 space-y-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowPaymentModal(true)}
+                      className="w-full py-4 rounded-none bg-ink text-white hover:bg-gold font-bold uppercase tracking-[0.2em] text-xs transition-colors duration-300 flex items-center justify-center cursor-pointer shadow-md"
+                    >
+                      {language === 'en' ? 'Pay Booking Fee' : 'Lipirani Mtengo wa Ulendo'}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submitting || !generateActive}
+                      className={`w-full py-4 rounded-none font-bold uppercase tracking-[0.2em] text-xs transition-all duration-300 flex items-center justify-center gap-2 ${
+                        submitting || !generateActive 
+                          ? 'bg-ink-fade text-ink/50 cursor-not-allowed' 
+                          : 'bg-gold hover:bg-ink text-white shadow-md cursor-pointer hover:scale-[1.01]'
+                      }`}
+                    >
+                      {submitting ? (
+                        <>
+                          <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                          <span>{t('processing')}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>{language === 'en' ? 'Generate Boarding Ticket' : 'Pangani Tikiti ya Ulendo'}</span>
+                          <ArrowRight className="h-4 w-4" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
             </form>
           </div>
         )}

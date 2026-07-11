@@ -5,10 +5,11 @@ import {
   X, RefreshCw, FileText, ChevronRight, DollarSign, RefreshCw as LoopIcon, Check, MapPin
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { RouteInfo, BookingRequest, MAIN_ROUTES, CUSTOMER_TESTIMONIALS } from '../data';
+import { RouteInfo, BookingRequest, MAIN_ROUTES, CUSTOMER_TESTIMONIALS, OPERATORS } from '../data';
 import { downloadTicket } from '../utils/ticketDownloader';
-import { collection, onSnapshot, doc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { collection, onSnapshot, doc, updateDoc, deleteDoc, setDoc, getDoc } from 'firebase/firestore';
+import { db, auth } from '../firebase';
+import { syncRoutesWithFirestore, saveRouteToFirestore, deleteRouteFromFirestore, handleFirestoreError, OperationType } from '../utils/firebaseSync';
 
 // Passcode to unlock the admin panel
 const ADMIN_PASSCODE = 'admin';
@@ -26,6 +27,10 @@ export default function ManagementPanel() {
   const [passcode, setPasscode] = useState<string>('');
   const [loginError, setLoginError] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'routes' | 'reviews' | 'logs'>('overview');
+
+  // Firebase auth & tenant isolation states
+  const [currentUserOperatorId, setCurrentUserOperatorId] = useState<string | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
 
   // Dynamic States synced with localStorage
   const [bookings, setBookings] = useState<BookingRequest[]>([]);
@@ -53,6 +58,32 @@ export default function ManagementPanel() {
   const [walkInPassengers, setWalkInPassengers] = useState<number>(1);
   const [walkInSpecial, setWalkInSpecial] = useState<string>('');
 
+  // Session lookup for logged-in operator admin
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (auth.currentUser) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            setCurrentUserRole(userData.role || 'customer');
+            setCurrentUserOperatorId(userData.operatorId || null);
+            if (userData.role === 'operator_admin') {
+              setIsAuthenticated(true); // Auto-authenticate operator admins
+            }
+          }
+        } catch (e) {
+          console.error('Failed to fetch user role:', e);
+          handleFirestoreError(e, OperationType.GET, 'users/' + auth.currentUser.uid);
+        }
+      } else {
+        setCurrentUserRole(null);
+        setCurrentUserOperatorId(null);
+      }
+    };
+    fetchUserRole();
+  }, [auth.currentUser]);
+
   // Sync state on load
   useEffect(() => {
     // Load Bookings from local cache first
@@ -75,6 +106,9 @@ export default function ManagementPanel() {
         const data = docSnap.data();
         allBookings.push({
           id: docSnap.id,
+          operatorId: data.operatorId || 'op-starlink',
+          tripId: data.tripId || 'trip-starlink-bt-ll-morning',
+          userId: data.userId || 'walk-in',
           fullName: data.fullName,
           phoneNumber: data.phoneNumber,
           email: data.email,
@@ -83,12 +117,14 @@ export default function ManagementPanel() {
           travelDate: data.travelDate,
           passengers: data.passengers,
           serviceClass: data.serviceClass,
-          isRoundTrip: data.isRoundTrip,
+          isRoundTrip: data.isRoundTrip || false,
           specialRequests: data.specialRequests,
           bookingRef: data.bookingRef,
           status: data.status,
           createdAt: data.createdAt,
           departureTime: data.departureTime,
+          routeGroup: data.routeGroup,
+          destinationDistrict: data.destinationDistrict,
         });
       });
       // Sort bookings descending
@@ -104,20 +140,13 @@ export default function ManagementPanel() {
       localStorage.setItem('starlink_bookings', JSON.stringify(allBookings));
     }, (error) => {
       console.warn('Could not load Firestore bookings in real-time, running in offline/local mode', error);
+      handleFirestoreError(error, OperationType.GET, 'bookings');
     });
 
-    // Load Routes
-    const storedRoutes = localStorage.getItem('starlink_routes');
-    if (storedRoutes) {
-      try {
-        setRoutes(JSON.parse(storedRoutes));
-      } catch (e) {
-        console.error('Failed to parse routes', e);
-      }
-    } else {
-      setRoutes(MAIN_ROUTES);
-      localStorage.setItem('starlink_routes', JSON.stringify(MAIN_ROUTES));
-    }
+    // Load Routes in real-time
+    const unsubscribeRoutes = syncRoutesWithFirestore((updatedRoutes) => {
+      setRoutes(updatedRoutes);
+    });
 
     // Load Reviews
     const storedReviews = localStorage.getItem('starlink_reviews');
@@ -158,10 +187,19 @@ export default function ManagementPanel() {
     const authStatus = sessionStorage.getItem('starlink_admin_auth');
     if (authStatus === 'true') {
       setIsAuthenticated(true);
+      const savedOpId = sessionStorage.getItem('starlink_admin_operator_id');
+      if (savedOpId && savedOpId !== 'all') {
+        setCurrentUserOperatorId(savedOpId);
+        setCurrentUserRole('operator_admin');
+      } else {
+        setCurrentUserOperatorId(null);
+        setCurrentUserRole('platform_admin');
+      }
     }
 
     return () => {
       unsubscribeBookings();
+      unsubscribeRoutes();
     };
   }, []);
 
@@ -200,25 +238,43 @@ export default function ManagementPanel() {
   // Auth Handler
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passcode === ADMIN_PASSCODE) {
+    const normalized = passcode.toLowerCase().trim();
+    if (normalized === ADMIN_PASSCODE) {
       setIsAuthenticated(true);
+      setCurrentUserOperatorId(null); // Platform admin sees all
+      setCurrentUserRole('platform_admin');
       sessionStorage.setItem('starlink_admin_auth', 'true');
+      sessionStorage.setItem('starlink_admin_operator_id', 'all');
       setLoginError('');
-      addAuditLog('Admin Login', 'Administrator authenticated successfully.', 'System');
+      addAuditLog('Admin Login', 'Platform Administrator authenticated successfully.', 'System');
+    } else if (['starlink', 'kwezy', 'axa', 'sososo'].includes(normalized)) {
+      setIsAuthenticated(true);
+      const operatorId = `op-${normalized}`;
+      setCurrentUserOperatorId(operatorId);
+      setCurrentUserRole('operator_admin');
+      sessionStorage.setItem('starlink_admin_auth', 'true');
+      sessionStorage.setItem('starlink_admin_operator_id', operatorId);
+      setLoginError('');
+      
+      const opName = OPERATORS.find(o => o.id === operatorId)?.name || normalized;
+      addAuditLog('Operator Login', `${opName} Administrator authenticated successfully.`, 'System');
     } else {
-      setLoginError('Invalid Passcode. Access Denied.');
+      setLoginError('Invalid Passcode. Access Denied. (Try: admin, starlink, kwezy, axa, or sososo)');
     }
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
+    setCurrentUserOperatorId(null);
+    setCurrentUserRole(null);
     sessionStorage.removeItem('starlink_admin_auth');
+    sessionStorage.removeItem('starlink_admin_operator_id');
     setPasscode('');
     addAuditLog('Admin Logout', 'Administrator session terminated.', 'System');
   };
 
   // Booking Moderation
-  const handleUpdateBookingStatus = (id: string, newStatus: 'Pending Review' | 'Confirmed' | 'Completed') => {
+  const handleUpdateBookingStatus = async (id: string, newStatus: 'Pending Review' | 'Confirmed' | 'Completed') => {
     const target = bookings.find(b => b.id === id);
     if (!target) return;
 
@@ -234,9 +290,10 @@ export default function ManagementPanel() {
     // Update in Firestore
     try {
       const docRef = doc(db, 'bookings', id);
-      updateDoc(docRef, { status: newStatus }).catch(err => console.error("Firestore update error:", err));
+      await updateDoc(docRef, { status: newStatus });
     } catch (e) {
-      console.error(e);
+      console.error("Firestore update error:", e);
+      handleFirestoreError(e, OperationType.UPDATE, `bookings/${id}`);
     }
 
     addAuditLog(
@@ -246,7 +303,7 @@ export default function ManagementPanel() {
     );
   };
 
-  const handleDeleteBooking = (id: string) => {
+  const handleDeleteBooking = async (id: string) => {
     const target = bookings.find(b => b.id === id);
     if (!target) return;
 
@@ -257,9 +314,10 @@ export default function ManagementPanel() {
       // Delete from Firestore
       try {
         const docRef = doc(db, 'bookings', id);
-        deleteDoc(docRef).catch(err => console.error("Firestore delete error:", err));
+        await deleteDoc(docRef);
       } catch (e) {
-        console.error(e);
+        console.error("Firestore delete error:", e);
+        handleFirestoreError(e, OperationType.DELETE, `bookings/${id}`);
       }
 
       addAuditLog(
@@ -270,7 +328,7 @@ export default function ManagementPanel() {
     }
   };
 
-  const handleSaveBookingEdit = (e: React.FormEvent) => {
+  const handleSaveBookingEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingBooking) return;
 
@@ -286,9 +344,10 @@ export default function ManagementPanel() {
     // Update in Firestore
     try {
       const docRef = doc(db, 'bookings', editingBooking.id);
-      updateDoc(docRef, { ...editingBooking }).catch(err => console.error("Firestore edit error:", err));
+      await updateDoc(docRef, { ...editingBooking });
     } catch (e) {
-      console.error(e);
+      console.error("Firestore edit error:", e);
+      handleFirestoreError(e, OperationType.UPDATE, `bookings/${editingBooking.id}`);
     }
 
     addAuditLog(
@@ -304,20 +363,36 @@ export default function ManagementPanel() {
     e.preventDefault();
     if (!editingRoute) return;
 
-    const updated = routes.map(r => {
-      if (r.id === editingRoute.id) {
-        return editingRoute;
-      }
-      return r;
-    });
+    saveRouteToFirestore(editingRoute)
+      .then(() => {
+        addAuditLog(
+          'Configured Route Schedule', 
+          `Route ${editingRoute.departureCity} ➔ ${editingRoute.destinationCity} (${editingRoute.serviceType}) saved/edited. Standard: MWK ${editingRoute.fareStandard.toLocaleString()}, VIP: MWK ${editingRoute.fareVIP.toLocaleString()}`, 
+          'Route'
+        );
+        setEditingRoute(null);
+      })
+      .catch(err => {
+        console.error("Firestore saveRoute error:", err);
+        alert('Failed to save route schedule in database. Please check your connection.');
+      });
+  };
 
-    saveRoutesState(updated);
-    addAuditLog(
-      'Edited Route Schedule', 
-      `Route ${editingRoute.departureCity} ➔ ${editingRoute.destinationCity} (${editingRoute.serviceType}) edited. Standard: MWK ${editingRoute.fareStandard.toLocaleString()}, VIP: MWK ${editingRoute.fareVIP.toLocaleString()}`, 
-      'Route'
-    );
-    setEditingRoute(null);
+  const handleDeleteRoute = (id: string, departure: string, destination: string) => {
+    if (confirm(`Are you sure you want to permanently delete route ${departure} ➔ ${destination}?`)) {
+      deleteRouteFromFirestore(id)
+        .then(() => {
+          addAuditLog(
+            'Deleted Route Schedule',
+            `Route ${departure} ➔ ${destination} was permanently deleted.`,
+            'Route'
+          );
+        })
+        .catch(err => {
+          console.error("Firestore deleteRoute error:", err);
+          alert('Failed to delete route from database.');
+        });
+    }
   };
 
   // Review Moderation
@@ -351,7 +426,7 @@ export default function ManagementPanel() {
   };
 
   // Walk-in Booker Submit
-  const handleWalkInBooking = (e: React.FormEvent) => {
+  const handleWalkInBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     const selectedRoute = routes.find(r => r.id === walkInRouteId);
     if (!selectedRoute) {
@@ -365,6 +440,9 @@ export default function ManagementPanel() {
 
     const newBooking: BookingRequest = {
       id: `book-${Date.now()}`,
+      operatorId: (selectedRoute as any).operatorId || currentUserOperatorId || 'op-starlink',
+      tripId: selectedRoute.id || 'trip-starlink-bt-ll-morning',
+      userId: auth.currentUser ? auth.currentUser.uid : 'walk-in',
       fullName: walkInName,
       phoneNumber: walkInPhone,
       email: walkInEmail || undefined,
@@ -373,6 +451,7 @@ export default function ManagementPanel() {
       travelDate: walkInDate || new Date().toISOString().split('T')[0],
       passengers: walkInPassengers,
       serviceClass: walkInClass,
+      isRoundTrip: false,
       specialRequests: walkInSpecial || undefined,
       bookingRef: reference,
       status: 'Confirmed', // Walk-ins are confirmed immediately
@@ -392,13 +471,14 @@ export default function ManagementPanel() {
     // Write walk-in booking to Firestore
     try {
       const docRef = doc(db, 'bookings', newBooking.id);
-      setDoc(docRef, {
+      await setDoc(docRef, {
         ...newBooking,
         userId: 'admin-walk-in',
         updatedAt: new Date().toISOString()
-      }).catch(err => console.error("Firestore walk-in save error:", err));
+      });
     } catch (err) {
       console.error("Firestore walk-in error:", err);
+      handleFirestoreError(err, OperationType.CREATE, `bookings/${newBooking.id}`);
     }
 
     addAuditLog(
@@ -419,19 +499,34 @@ export default function ManagementPanel() {
     alert(`Ticket #${reference} successfully generated and confirmed!`);
   };
 
+  // Filter by operator data isolation
+  const operatorBookings = bookings.filter(b => {
+    if (currentUserOperatorId) {
+      return b.operatorId === currentUserOperatorId;
+    }
+    return true;
+  });
+
+  const operatorRoutes = routes.filter(r => {
+    if (currentUserOperatorId) {
+      return r.operatorId === currentUserOperatorId;
+    }
+    return true;
+  });
+
   // Metrics Calculations
   const metrics = (() => {
-    const totalCount = bookings.length;
-    const confirmedCount = bookings.filter(b => b.status === 'Confirmed').length;
-    const pendingCount = bookings.filter(b => b.status === 'Pending Review').length;
-    const completedCount = bookings.filter(b => b.status === 'Completed').length;
+    const totalCount = operatorBookings.length;
+    const confirmedCount = operatorBookings.filter(b => b.status === 'Confirmed').length;
+    const pendingCount = operatorBookings.filter(b => b.status === 'Pending Review').length;
+    const completedCount = operatorBookings.filter(b => b.status === 'Completed').length;
     
     let totalRevenue = 0;
     let standardRevenue = 0;
     let vipRevenue = 0;
     let totalPassengers = 0;
 
-    bookings.forEach(b => {
+    operatorBookings.forEach(b => {
       // Find matching route to calculate fare, or fallback to standard pricing
       let price = b.serviceClass === 'VIP' ? 45000 : 35000;
       if (b.isRoundTrip) price = 50000; // special package
@@ -464,7 +559,7 @@ export default function ManagementPanel() {
   })();
 
   // Filter Bookings
-  const filteredBookings = bookings.filter(b => {
+  const filteredBookings = operatorBookings.filter(b => {
     const matchesSearch = b.fullName.toLowerCase().includes(bookingSearch.toLowerCase()) || 
                           b.bookingRef.toLowerCase().includes(bookingSearch.toLowerCase()) ||
                           b.phoneNumber.includes(bookingSearch);
@@ -1117,75 +1212,124 @@ export default function ManagementPanel() {
                   <h3 className="serif text-lg font-bold text-ink">Active Intercity Scheduled Fares & Times</h3>
                   <p className="text-xs text-ink/50 mt-1">Changes made here instantly configure client ticket booking forms and schedules dynamically.</p>
                 </div>
-                <div className="px-3.5 py-1.5 bg-green-50 text-green-700 text-[10px] uppercase tracking-widest font-bold border border-green-200 flex items-center gap-1">
-                  <span className="flex h-1.5 w-1.5 bg-green-600 rounded-full animate-ping"></span>
-                  <span>Live Booking Engine Synced</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const newId = `route-${Date.now()}`;
+                      setEditingRoute({
+                        id: newId,
+                        departureCity: 'Blantyre',
+                        destinationCity: 'Lilongwe',
+                        departureTime: '08:00 AM',
+                        arrivalTime: '12:30 PM',
+                        pickupLocation: 'Wenela Terminal, Blantyre',
+                        dropoffLocation: 'Grand Business Park, Lilongwe',
+                        fareStandard: 35000,
+                        fareVIP: 45000,
+                        duration: '4.5 Hours',
+                        serviceType: 'Morning Express',
+                        busType: 'Standard Luxury',
+                        operatorId: currentUserOperatorId || 'op-starlink',
+                        operatorName: OPERATORS.find(o => o.id === (currentUserOperatorId || 'op-starlink'))?.name || 'Starlink Tours'
+                      });
+                    }}
+                    className="px-4 py-2 bg-gold hover:bg-[#0b1d3a] hover:text-white text-white text-[11px] font-bold uppercase tracking-widest flex items-center gap-1.5 cursor-pointer shadow-sm transition-all duration-300"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Create New Route</span>
+                  </button>
+                  <div className="px-3.5 py-1.5 bg-green-50 text-green-700 text-[10px] uppercase tracking-widest font-bold border border-green-200 flex items-center gap-1">
+                    <span className="flex h-1.5 w-1.5 bg-green-600 rounded-full animate-ping"></span>
+                    <span>Live Booking Engine Synced</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
-                {routes.map((route) => (
-                  <div 
-                    key={route.id}
-                    className="border border-ink-fade hover:border-gold/50 bg-[#faf7f2] p-6 relative flex flex-col justify-between"
-                  >
-                    <div className="absolute top-0 right-0 bg-[#0b1d3a] text-white text-[9px] font-bold uppercase tracking-widest px-3 py-1">
-                      {route.serviceType}
-                    </div>
-
-                    <div className="space-y-5">
-                      {/* Cities & Direction */}
-                      <div className="flex items-center gap-3 pt-3">
-                        <div className="serif text-xl font-bold text-ink">{route.departureCity}</div>
-                        <ChevronRight className="h-4 w-4 text-gold shrink-0" />
-                        <div className="serif text-xl font-bold text-ink">{route.destinationCity}</div>
-                      </div>
-
-                      {/* Timetable config */}
-                      <div className="grid grid-cols-2 gap-4 text-xs bg-white p-4 border border-ink-fade">
-                        <div>
-                          <strong className="text-ink/40 block uppercase text-[9px] font-bold">Standard Class Fare</strong>
-                          <span className="serif text-lg font-bold text-ink">MWK {route.fareStandard.toLocaleString()}</span>
-                        </div>
-                        <div>
-                          <strong className="text-ink/40 block uppercase text-[9px] font-bold">VIP Class Fare</strong>
-                          <span className="serif text-lg font-bold text-gold">MWK {route.fareVIP.toLocaleString()}</span>
-                        </div>
-                        <div>
-                          <strong className="text-ink/40 block uppercase text-[9px] font-bold">Departure Departure</strong>
-                          <span className="font-semibold text-ink">{route.departureTime}</span>
-                        </div>
-                        <div>
-                          <strong className="text-ink/40 block uppercase text-[9px] font-bold">Trip Duration</strong>
-                          <span className="font-semibold text-ink">{route.duration}</span>
-                        </div>
-                      </div>
-
-                      {/* Station detailed addresses */}
-                      <div className="space-y-2 text-xs text-ink/70">
-                        <div className="flex items-start gap-1.5">
-                          <MapPin className="h-4 w-4 text-gold shrink-0 mt-0.5" />
-                          <span><strong>Boarding:</strong> {route.pickupLocation}</span>
-                        </div>
-                        <div className="flex items-start gap-1.5">
-                          <MapPin className="h-4 w-4 text-gold shrink-0 mt-0.5" />
-                          <span><strong>Dropoff:</strong> {route.dropoffLocation}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="border-t border-ink-fade pt-4 mt-6 flex justify-end">
-                      <button
-                        onClick={() => setEditingRoute(route)}
-                        className="px-4 py-2 bg-ink hover:bg-gold text-white text-[11px] font-bold uppercase tracking-widest flex items-center gap-1.5 cursor-pointer"
+              {operatorRoutes.length === 0 ? (
+                <div className="text-center py-16 text-ink/40">
+                  <Bus className="h-10 w-10 mx-auto mb-3 text-ink/30" />
+                  <p className="serif text-base font-bold">No registered routes found for this operator.</p>
+                  <p className="text-xs mt-1">Click "Create New Route" to establish your first scheduled transport corridor.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+                  {operatorRoutes.map((route) => {
+                    const opLogo = OPERATORS.find(o => o.id === route.operatorId)?.logo || '✨';
+                    return (
+                      <div 
+                        key={route.id}
+                        className="border border-ink-fade hover:border-gold/50 bg-[#faf7f2] p-6 relative flex flex-col justify-between"
                       >
-                        <Edit className="h-3.5 w-3.5" />
-                        <span>Edit Schedule / Rates</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                        <div className="absolute top-0 right-0 bg-[#0b1d3a] text-white text-[9px] font-bold uppercase tracking-widest px-3 py-1 flex items-center gap-1">
+                          <span>{opLogo}</span>
+                          <span>{route.operatorName || 'Starlink'}</span>
+                          <span>&bull;</span>
+                          <span>{route.serviceType}</span>
+                        </div>
+
+                        <div className="space-y-5">
+                          {/* Cities & Direction */}
+                          <div className="flex items-center gap-3 pt-3">
+                            <div className="serif text-xl font-bold text-ink">{route.departureCity}</div>
+                            <ChevronRight className="h-4 w-4 text-gold shrink-0" />
+                            <div className="serif text-xl font-bold text-ink">{route.destinationCity}</div>
+                          </div>
+
+                          {/* Timetable config */}
+                          <div className="grid grid-cols-2 gap-4 text-xs bg-white p-4 border border-ink-fade">
+                            <div>
+                              <strong className="text-ink/40 block uppercase text-[9px] font-bold">Standard Class Fare</strong>
+                              <span className="serif text-lg font-bold text-ink">MWK {route.fareStandard.toLocaleString()}</span>
+                            </div>
+                            <div>
+                              <strong className="text-ink/40 block uppercase text-[9px] font-bold">VIP Class Fare</strong>
+                              <span className="serif text-lg font-bold text-gold">MWK {route.fareVIP.toLocaleString()}</span>
+                            </div>
+                            <div>
+                              <strong className="text-ink/40 block uppercase text-[9px] font-bold">Departure Time</strong>
+                              <span className="font-semibold text-ink">{route.departureTime}</span>
+                            </div>
+                            <div>
+                              <strong className="text-ink/40 block uppercase text-[9px] font-bold">Trip Duration</strong>
+                              <span className="font-semibold text-ink">{route.duration}</span>
+                            </div>
+                          </div>
+
+                          {/* Station detailed addresses */}
+                          <div className="space-y-2 text-xs text-ink/70">
+                            <div className="flex items-start gap-1.5">
+                              <MapPin className="h-4 w-4 text-gold shrink-0 mt-0.5" />
+                              <span><strong>Boarding:</strong> {route.pickupLocation}</span>
+                            </div>
+                            <div className="flex items-start gap-1.5">
+                              <MapPin className="h-4 w-4 text-gold shrink-0 mt-0.5" />
+                              <span><strong>Dropoff:</strong> {route.dropoffLocation}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="border-t border-ink-fade pt-4 mt-6 flex justify-end items-center gap-2">
+                          <button
+                            onClick={() => handleDeleteRoute(route.id, route.departureCity, route.destinationCity)}
+                            className="px-3 py-2 bg-red-50 hover:bg-red-600 border border-red-200 text-red-600 hover:text-white text-[11px] font-bold uppercase tracking-widest flex items-center gap-1.5 cursor-pointer transition-colors"
+                            title="Delete this scheduled service"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span>Delete</span>
+                          </button>
+                          <button
+                            onClick={() => setEditingRoute(route)}
+                            className="px-4 py-2 bg-ink hover:bg-gold hover:text-neutral-900 text-white text-[11px] font-bold uppercase tracking-widest flex items-center gap-1.5 cursor-pointer transition-colors"
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                            <span>Edit Schedule / Rates</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1493,7 +1637,94 @@ export default function ManagementPanel() {
                 </button>
               </div>
 
-              <form onSubmit={handleSaveRouteEdit} className="p-6 space-y-4">
+              <form onSubmit={handleSaveRouteEdit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+                {/* Cities configuration */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="block text-[9px] font-bold uppercase tracking-widest text-ink/50">Departure City *</label>
+                    <select
+                      required
+                      value={editingRoute.departureCity}
+                      onChange={(e) => setEditingRoute({ ...editingRoute, departureCity: e.target.value })}
+                      className="w-full border-b border-ink-fade py-2 text-xs focus:outline-none focus:border-gold bg-transparent font-semibold text-ink rounded-none"
+                    >
+                      <option value="Blantyre">Blantyre</option>
+                      <option value="Lilongwe">Lilongwe</option>
+                      <option value="Mzuzu">Mzuzu</option>
+                      <option value="Zomba">Zomba</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-[9px] font-bold uppercase tracking-widest text-ink/50">Destination City *</label>
+                    <select
+                      required
+                      value={editingRoute.destinationCity}
+                      onChange={(e) => setEditingRoute({ ...editingRoute, destinationCity: e.target.value })}
+                      className="w-full border-b border-ink-fade py-2 text-xs focus:outline-none focus:border-gold bg-transparent font-semibold text-ink rounded-none"
+                    >
+                      <option value="Blantyre">Blantyre</option>
+                      <option value="Lilongwe">Lilongwe</option>
+                      <option value="Mzuzu">Mzuzu</option>
+                      <option value="Zomba">Zomba</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Service type & Operator (if platform admin) */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="block text-[9px] font-bold uppercase tracking-widest text-ink/50">Service Type *</label>
+                    <select
+                      required
+                      value={editingRoute.serviceType}
+                      onChange={(e) => setEditingRoute({ ...editingRoute, serviceType: e.target.value })}
+                      className="w-full border-b border-ink-fade py-2 text-xs focus:outline-none focus:border-gold bg-transparent font-semibold text-ink rounded-none"
+                    >
+                      <option value="Morning Express">Morning Express</option>
+                      <option value="Afternoon Executive">Afternoon Executive</option>
+                      <option value="Night Cruiser">Night Cruiser</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-[9px] font-bold uppercase tracking-widest text-ink/50">Bus/Class Type *</label>
+                    <select
+                      required
+                      value={editingRoute.busType}
+                      onChange={(e) => setEditingRoute({ ...editingRoute, busType: e.target.value })}
+                      className="w-full border-b border-ink-fade py-2 text-xs focus:outline-none focus:border-gold bg-transparent font-semibold text-ink rounded-none"
+                    >
+                      <option value="Standard Luxury">Standard Luxury</option>
+                      <option value="VIP Club Class">VIP Club Class</option>
+                      <option value="Double Decker Executive">Double Decker Executive</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Operator configuration (Locked for operator admins, selectable for platform admins) */}
+                <div className="space-y-1">
+                  <label className="block text-[9px] font-bold uppercase tracking-widest text-ink/50">Service Operator *</label>
+                  {currentUserRole === 'platform_admin' ? (
+                    <select
+                      required
+                      value={editingRoute.operatorId}
+                      onChange={(e) => {
+                        const opId = e.target.value;
+                        const opName = OPERATORS.find(o => o.id === opId)?.name || 'Starlink Tours';
+                        setEditingRoute({ ...editingRoute, operatorId: opId, operatorName: opName });
+                      }}
+                      className="w-full border-b border-[#cca43b] py-2 text-xs focus:outline-none focus:border-gold bg-transparent font-semibold text-ink rounded-none"
+                    >
+                      {OPERATORS.map(op => (
+                        <option key={op.id} value={op.id}>{op.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="py-2 text-xs font-semibold text-ink/70 bg-neutral-50 px-2 border-l-2 border-gold">
+                      {editingRoute.operatorName || 'Your Registered Company'}
+                    </div>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="block text-[9px] font-bold uppercase tracking-widest text-ink/50">Standard Fare (MWK) *</label>

@@ -26,10 +26,10 @@ const ContactSection = lazy(() => import('./components/ContactSection'));
 const MyBookings = lazy(() => import('./components/MyBookings'));
 const ManagementPanel = lazy(() => import('./components/ManagementPanel'));
 
-import { RouteInfo, BookingRequest, MAIN_ROUTES, CUSTOMER_TESTIMONIALS, FLEET_FEATURES, OFFICE_CONTACTS } from './data';
+import { RouteInfo, BookingRequest, MAIN_ROUTES, CUSTOMER_TESTIMONIALS, FLEET_FEATURES, OFFICE_CONTACTS, OPERATORS } from './data';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './firebase';
-import { syncBookingsWithFirestore, setupBookingsListener } from './utils/firebaseSync';
+import { syncBookingsWithFirestore, setupBookingsListener, syncRoutesWithFirestore } from './utils/firebaseSync';
 
 const LoadingFallback = () => (
   <div className="flex flex-col items-center justify-center min-h-[400px] py-16 text-[#0b1d3a]">
@@ -47,30 +47,90 @@ const LoadingFallback = () => (
   </div>
 );
 
+const POPULAR_ROUTES_DATA = [
+  {
+    departure: 'Lilongwe',
+    destination: 'Blantyre',
+    price: '35,000',
+    type: 'Daily',
+    duration: '4.5 Hours',
+    cabin: 'Executive Cabin',
+    isPromo: false,
+  },
+  {
+    departure: 'Blantyre',
+    destination: 'Lilongwe',
+    price: '35,000',
+    type: 'Daily',
+    duration: '4.5 Hours',
+    cabin: 'Executive Cabin',
+    isPromo: false,
+  },
+  {
+    departure: 'Lilongwe',
+    destination: 'Blantyre',
+    price: '45,000',
+    type: 'VIP Promo',
+    duration: '4.5 Hours',
+    cabin: 'VIP Club Class',
+    isPromo: true,
+  },
+  {
+    departure: 'Lilongwe',
+    destination: 'Mzuzu',
+    price: '38,000',
+    type: 'Daily',
+    duration: '5.0 Hours',
+    cabin: 'Standard Luxury',
+    isPromo: false,
+  },
+  {
+    departure: 'Blantyre',
+    destination: 'Zomba',
+    price: '8,000',
+    type: 'Express',
+    duration: '1.5 Hours',
+    cabin: 'Standard Luxury',
+    isPromo: false,
+  }
+];
+
 const OPERATORS_LIST = [
   {
-    id: 'starlink',
+    id: 'op-starlink',
     name: 'Starlink Tours',
     slogan: "Malawi's Premium Luxury Highway Cruiser",
     description: "Starlink Tours provides reliable executive intercity highway transports. Certified speed governors capped strictly at 80km/h, expert long-distance drivers, VIP leather recliners, onboard restrooms, USB chargers, and complimentary satellite internet.",
     routeGroups: ['M1 Route', 'Lakeshore'],
     isIntegrated: true,
+    logo: '✨'
   },
   {
-    id: 'axa',
-    name: 'AXA Coaches',
-    slogan: 'Coming Soon',
-    description: 'Integrating premium intercity schedules between Blantyre and Mzuzu in Phase 2 launch.',
-    routeGroups: ['Lakeshore'],
-    isIntegrated: false,
-  },
-  {
-    id: 'kwezy',
-    name: 'Kwezy Bus Services',
-    slogan: 'Coming Soon',
-    description: 'Integrating modern business class runs between Lilongwe and Mzuzu in upcoming updates.',
+    id: 'op-kwezy',
+    name: 'Kwezy Bus Service',
+    slogan: 'Connecting Cities with Modern Luxury',
+    description: 'Kwezy Bus Service connects major cities across Malawi with premium long-haul luxury transports, offering reclining seats, charging ports, climate control, and complimentary hot beverages.',
     routeGroups: ['M1 Route'],
-    isIntegrated: false,
+    isIntegrated: true,
+    logo: '🦅'
+  },
+  {
+    id: 'op-axa',
+    name: 'AXA Coaches',
+    slogan: 'The Elite Express Network',
+    description: 'AXA Coaches operates standard and VIP class intercity buses equipped with state-of-the-art safety limiters, generous storage capacity, and certified professional highway crews.',
+    routeGroups: ['Lakeshore'],
+    isIntegrated: true,
+    logo: '⚡'
+  },
+  {
+    id: 'op-sososo',
+    name: 'Sososo Coaches',
+    slogan: 'Your Premium Safe Travel Partner',
+    description: 'Sososo Coaches offers elite express morning and overnight cruiser connections, featuring climate control, comfortable cabins, safety-first operations, and standard-class high value ticketing.',
+    routeGroups: ['M1 Route'],
+    isIntegrated: true,
+    logo: '🌟'
   }
 ];
 
@@ -115,7 +175,6 @@ export default function App() {
   const [yavaStandardsOpen, setYavaStandardsOpen] = useState<boolean>(false);
   const [travelerVoicesOpen, setTravelerVoicesOpen] = useState<boolean>(false);
   const homeDate = new Date().toISOString().split('T')[0];
-  const popularRoutesRef = useRef<HTMLDivElement>(null);
   
   const [reviews, setReviews] = useState(CUSTOMER_TESTIMONIALS);
   const [newReviewName, setNewReviewName] = useState('');
@@ -126,22 +185,10 @@ export default function App() {
   const [operatorRouteGroupFilter, setOperatorRouteGroupFilter] = useState<'All' | 'Lakeshore' | 'M1 Route'>('All');
 
   useEffect(() => {
-    const loadRoutes = () => {
-      try {
-        const stored = localStorage.getItem('yava_routes');
-        if (stored) {
-          setActiveRoutes(JSON.parse(stored));
-        } else {
-          setActiveRoutes(MAIN_ROUTES);
-          localStorage.setItem('yava_routes', JSON.stringify(MAIN_ROUTES));
-        }
-      } catch (err) {
-        console.error('Failed to load routes in home', err);
-      }
-    };
-    loadRoutes();
-    window.addEventListener('storage', loadRoutes);
-    return () => window.removeEventListener('storage', loadRoutes);
+    const unsubscribeRoutes = syncRoutesWithFirestore((updatedRoutes) => {
+      setActiveRoutes(updatedRoutes);
+    });
+    return () => unsubscribeRoutes();
   }, []);
 
   useEffect(() => {
@@ -170,66 +217,7 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Popular Routes automatic horizontal scrolling with user-scroll bypass and pause-on-interaction
-  useEffect(() => {
-    if (currentView !== 'home') return;
-    const container = popularRoutesRef.current;
-    if (!container) return;
 
-    let intervalId: NodeJS.Timeout;
-    let isUserInteracting = false;
-    let userInteractionTimeout: NodeJS.Timeout;
-
-    const handleUserInteraction = () => {
-      isUserInteracting = true;
-      clearTimeout(userInteractionTimeout);
-      // Resume auto-scrolling after 8 seconds of no user interaction
-      userInteractionTimeout = setTimeout(() => {
-        isUserInteracting = false;
-      }, 8000);
-    };
-
-    container.addEventListener('touchstart', handleUserInteraction, { passive: true });
-    container.addEventListener('mousedown', handleUserInteraction);
-    container.addEventListener('wheel', handleUserInteraction, { passive: true });
-
-    const autoScroll = () => {
-      if (isUserInteracting) return;
-
-      const scrollWidth = container.scrollWidth;
-      const clientWidth = container.clientWidth;
-      const maxScrollLeft = scrollWidth - clientWidth;
-      
-      if (maxScrollLeft <= 0) return;
-
-      // Find card width (first child width + gap, defaulting to 336px if first child isn't rendered yet)
-      const firstChild = container.children[0] as HTMLElement;
-      const scrollStep = firstChild ? firstChild.clientWidth + 16 : 336;
-
-      let targetScrollLeft = container.scrollLeft + scrollStep;
-
-      // If we are close to the end, wrap smoothly back to the beginning
-      if (targetScrollLeft >= maxScrollLeft + 5) {
-        targetScrollLeft = 0;
-      }
-
-      container.scrollTo({
-        left: targetScrollLeft,
-        behavior: 'smooth'
-      });
-    };
-
-    // Auto scroll every 3.5 seconds
-    intervalId = setInterval(autoScroll, 3500);
-
-    return () => {
-      clearInterval(intervalId);
-      clearTimeout(userInteractionTimeout);
-      container.removeEventListener('touchstart', handleUserInteraction);
-      container.removeEventListener('mousedown', handleUserInteraction);
-      container.removeEventListener('wheel', handleUserInteraction);
-    };
-  }, [currentView]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -443,66 +431,40 @@ export default function App() {
                     </button>
                   </div>
 
-                  {/* Horizontal Scroll Grid of Route Cards */}
-                  <div 
-                    ref={popularRoutesRef}
-                    className="flex gap-4 overflow-x-auto pb-4 pt-1 snap-x scrollbar-thin scrollbar-thumb-gray-200"
-                  >
-                    <div 
-                      onClick={() => handleNavigateToBooking({ departure: 'Lilongwe', destination: 'Blantyre', date: homeDate, passengers: 1 })}
-                      className="min-w-[280px] sm:min-w-[320px] bg-gray-50 hover:bg-[#062A73]/5 border border-gray-100 rounded-2xl p-5 shrink-0 snap-start cursor-pointer transition-all duration-200"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-[9px] uppercase tracking-wider font-black px-2 py-0.5 rounded-full bg-[#062A73]/10 text-[#062A73]">Daily</span>
-                        <span className="text-xs font-bold text-[#FF5A1F]">{language === 'en' ? 'From' : 'Kuyambira'} MK35,000</span>
-                      </div>
-                      <h3 className="text-base font-bold text-[#062A73] flex items-center gap-2">
-                        <span>Lilongwe</span>
-                        <ArrowRight className="h-4 w-4 text-[#FF5A1F]" />
-                        <span>Blantyre</span>
-                      </h3>
-                      <p className="text-[11px] text-gray-500 mt-2 flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5" />
-                        <span>4.5 Hours &bull; Executive Cabin</span>
-                      </p>
-                    </div>
-
-                    <div 
-                      onClick={() => handleNavigateToBooking({ departure: 'Blantyre', destination: 'Lilongwe', date: homeDate, passengers: 1 })}
-                      className="min-w-[280px] sm:min-w-[320px] bg-gray-50 hover:bg-[#062A73]/5 border border-gray-100 rounded-2xl p-5 shrink-0 snap-start cursor-pointer transition-all duration-200"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-[9px] uppercase tracking-wider font-black px-2 py-0.5 rounded-full bg-[#062A73]/10 text-[#062A73]">Daily</span>
-                        <span className="text-xs font-bold text-[#FF5A1F]">{language === 'en' ? 'From' : 'Kuyambira'} MK35,000</span>
-                      </div>
-                      <h3 className="text-base font-bold text-[#062A73] flex items-center gap-2">
-                        <span>Blantyre</span>
-                        <ArrowRight className="h-4 w-4 text-[#FF5A1F]" />
-                        <span>Lilongwe</span>
-                      </h3>
-                      <p className="text-[11px] text-gray-500 mt-2 flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5" />
-                        <span>4.5 Hours &bull; Executive Cabin</span>
-                      </p>
-                    </div>
-
-                    <div 
-                      onClick={() => handleNavigateToBooking({ departure: 'Lilongwe', destination: 'Blantyre', date: homeDate, passengers: 1 })}
-                      className="min-w-[280px] sm:min-w-[320px] bg-gray-50 hover:bg-[#062A73]/5 border border-gray-100 rounded-2xl p-5 shrink-0 snap-start cursor-pointer transition-all duration-200"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-[9px] uppercase tracking-wider font-black px-2 py-0.5 rounded-full bg-orange-100 text-[#FF5A1F]">VIP Promo</span>
-                        <span className="text-xs font-bold text-[#FF5A1F]">From MK45,000</span>
-                      </div>
-                      <h3 className="text-base font-bold text-[#062A73] flex items-center gap-2">
-                        <span>Lilongwe</span>
-                        <ArrowRight className="h-4 w-4 text-[#FF5A1F]" />
-                        <span>Blantyre</span>
-                      </h3>
-                      <p className="text-[11px] text-gray-500 mt-2 flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5" />
-                        <span>4.5 Hours &bull; VIP Club Class</span>
-                      </p>
+                  {/* Horizontal Loop Marquee of Route Cards */}
+                  <div className="w-full overflow-hidden py-4 select-none">
+                    <div className="animate-marquee flex gap-0">
+                      {[...POPULAR_ROUTES_DATA, ...POPULAR_ROUTES_DATA].map((route, idx) => (
+                        <div 
+                          key={`${route.departure}-${route.destination}-${idx}`}
+                          className="pr-4 shrink-0"
+                        >
+                          <div 
+                            onClick={() => handleNavigateToBooking({ departure: route.departure, destination: route.destination, date: homeDate, passengers: 1 })}
+                            className="w-[280px] sm:w-[320px] bg-gray-50 hover:bg-[#062A73]/5 border border-gray-100 rounded-2xl p-5 cursor-pointer transition-all duration-200"
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <span className={`text-[9px] uppercase tracking-wider font-black px-2 py-0.5 rounded-full ${
+                                route.isPromo ? 'bg-orange-100 text-[#FF5A1F]' : 'bg-[#062A73]/10 text-[#062A73]'
+                              }`}>
+                                {route.type}
+                              </span>
+                              <span className="text-xs font-bold text-[#FF5A1F]">
+                                {language === 'en' ? 'From' : 'Kuyambira'} MK{route.price}
+                              </span>
+                            </div>
+                            <h3 className="text-base font-bold text-[#062A73] flex items-center gap-2">
+                              <span>{route.departure}</span>
+                              <ArrowRight className="h-4 w-4 text-[#FF5A1F]" />
+                              <span>{route.destination}</span>
+                            </h3>
+                            <p className="text-[11px] text-gray-500 mt-2 flex items-center gap-1.5">
+                              <Clock className="h-3.5 w-3.5" />
+                              <span>{route.duration} &bull; {route.cabin}</span>
+                            </p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -588,104 +550,40 @@ export default function App() {
 
                   {/* Two Cards per Row Layout */}
                   <div className="grid grid-cols-2 gap-4">
-                    
-                    {/* Starlink Card */}
-                    <div 
-                      onClick={() => navigateTo('operators')}
-                      className="bg-white border border-gray-300 rounded-2xl p-4 text-left shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.16)] hover:border-[#FF5A1F]/30 transition-all cursor-pointer flex flex-col justify-between"
-                    >
-                      <div>
-                        <div className="h-10 w-10 bg-[#062A73] text-white rounded-xl flex items-center justify-center font-bold text-sm mb-3 shadow-sm">
-                          SL
-                        </div>
-                        <h3 className="text-xs sm:text-sm font-black text-navy leading-tight">Starlink Tours</h3>
-                        <span className="text-[10px] text-gray-400 block mt-1">18 Routes Available</span>
-                      </div>
-                      <div className="flex items-center justify-between mt-4 pt-2 border-t border-gray-50">
-                        <div className="flex items-center text-amber-500 text-[10px]">
-                          ★ 5.0
-                        </div>
-                        <span className="text-[10px] font-bold text-[#FF5A1F] flex items-center gap-0.5">
-                          <span>View</span>
-                          <ChevronRight className="h-3 w-3" />
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* AXA Card */}
-                    <div 
-                      onClick={() => alert('AXA Coaches integration is coming soon in Phase 2!')}
-                      className="bg-white border border-gray-300 rounded-2xl p-4 text-left shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.16)] hover:border-[#FF5A1F]/30 transition-all cursor-pointer flex flex-col justify-between group"
-                    >
-                      <div>
-                        <div className="h-10 w-10 bg-gray-100 text-gray-400 rounded-xl flex items-center justify-center font-bold text-sm mb-3">
-                          AX
-                        </div>
-                        <h3 className="text-xs sm:text-sm font-black text-gray-400 leading-tight">AXA Coaches</h3>
-                        <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-gray-50 text-gray-400 inline-block mt-1">Coming Soon</span>
-                      </div>
-                      <div className="mt-4 pt-2 border-t border-gray-50">
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            alert('You will be notified once AXA Coaches starts booking!');
+                    {OPERATORS_LIST.map((op) => {
+                      // Count dynamic routes for this operator
+                      const dynamicRouteCount = activeRoutes.filter(r => r.operatorId === op.id).length;
+                      
+                      return (
+                        <div 
+                          key={op.id}
+                          onClick={() => {
+                            setOperatorSearchQuery(op.name);
+                            navigateTo('operators');
                           }}
-                          className="w-full py-1.5 bg-gray-50 hover:bg-[#FF5A1F] hover:text-white text-gray-500 text-[9px] font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
+                          className="bg-white border border-gray-300 rounded-2xl p-4 text-left shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.16)] hover:border-[#FF5A1F]/30 transition-all cursor-pointer flex flex-col justify-between"
                         >
-                          Notify Me
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Kwezy Card */}
-                    <div 
-                      onClick={() => alert('Kwezy Bus Services integration is coming soon in Phase 2!')}
-                      className="bg-white border border-gray-300 rounded-2xl p-4 text-left shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.16)] hover:border-[#FF5A1F]/30 transition-all cursor-pointer flex flex-col justify-between"
-                    >
-                      <div>
-                        <div className="h-10 w-10 bg-gray-100 text-gray-400 rounded-xl flex items-center justify-center font-bold text-sm mb-3">
-                          KZ
+                          <div>
+                            <div className="h-10 w-10 bg-[#062A73] text-white rounded-xl flex items-center justify-center font-bold text-lg mb-3 shadow-sm">
+                              {op.logo}
+                            </div>
+                            <h3 className="text-xs sm:text-sm font-black text-navy leading-tight">{op.name}</h3>
+                            <span className="text-[10px] text-gray-500 block mt-1">
+                              {dynamicRouteCount} {dynamicRouteCount === 1 ? 'Route' : 'Routes'} Active
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between mt-4 pt-2 border-t border-gray-50">
+                            <div className="flex items-center text-amber-500 text-[10px]">
+                              ★ {(5.0 - (op.id === 'op-sososo' ? 0.4 : op.id === 'op-axa' ? 0.3 : op.id === 'op-kwezy' ? 0.2 : 0)).toFixed(1)}
+                            </div>
+                            <span className="text-[10px] font-bold text-[#FF5A1F] flex items-center gap-0.5">
+                              <span>View</span>
+                              <ChevronRight className="h-3 w-3" />
+                            </span>
+                          </div>
                         </div>
-                        <h3 className="text-xs sm:text-sm font-black text-gray-400 leading-tight">Kwezy Bus</h3>
-                        <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-gray-50 text-gray-400 inline-block mt-1">Coming Soon</span>
-                      </div>
-                      <div className="mt-4 pt-2 border-t border-gray-50">
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            alert('You will be notified once Kwezy Bus Services starts booking!');
-                          }}
-                          className="w-full py-1.5 bg-gray-50 hover:bg-[#FF5A1F] hover:text-white text-gray-500 text-[9px] font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
-                        >
-                          Notify Me
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Sososo Card */}
-                    <div 
-                      className="bg-white border border-gray-300 rounded-2xl p-4 text-left shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.16)] flex flex-col justify-between opacity-80"
-                    >
-                      <div>
-                        <div className="h-10 w-10 bg-gray-100 text-gray-400 rounded-xl flex items-center justify-center font-bold text-sm mb-3">
-                          SS
-                        </div>
-                        <h3 className="text-xs sm:text-sm font-black text-gray-400 leading-tight">Sososo Coaches</h3>
-                        <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-gray-50 text-gray-400 inline-block mt-1">Coming Soon</span>
-                      </div>
-                      <div className="mt-4 pt-2 border-t border-gray-50">
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            alert('You will be notified once Sososo Coaches starts booking!');
-                          }}
-                          className="w-full py-1.5 bg-gray-50 hover:bg-[#FF5A1F] hover:text-white text-gray-500 text-[9px] font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
-                        >
-                          Notify Me
-                        </button>
-                      </div>
-                    </div>
-
+                      );
+                    })}
                   </div>
 
                   {/* View All Button */}
@@ -892,115 +790,129 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Operators List */}
-              <div className="space-y-6">
-                {/* Starlink Tours Active Profile */}
-                {OPERATORS_LIST.filter(op => operatorRouteGroupFilter === 'All' || op.routeGroups.includes(operatorRouteGroupFilter)).some(op => op.id === 'starlink') && (
-                  <div className="bg-white border border-gray-150 rounded-2xl overflow-hidden shadow-sm mb-6">
-                    <div className="h-32 bg-[#062A73] p-6 flex flex-col justify-end text-white relative">
-                  <div className="absolute top-4 right-4 bg-[#FF5A1F] text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                    Fully Integrated
-                  </div>
-                  <h2 className="serif text-2xl font-bold">Starlink Tours</h2>
-                  <p className="text-xs text-white/80">Malawi&apos;s Premium Luxury Highway Cruiser</p>
-                </div>
-                <div className="p-6 space-y-4">
-                  <p className="text-xs text-gray-600 leading-relaxed">
-                    Starlink Tours provides reliable executive intercity highway transports. Certified speed governors capped strictly at 80km/h, expert long-distance drivers, VIP leather recliners, onboard restrooms, USB chargers, and complimentary satellite internet.
-                  </p>
+              {/* Operators Dynamic List */}
+              <div className="space-y-8">
+                {OPERATORS_LIST.filter(op => operatorRouteGroupFilter === 'All' || op.routeGroups.includes(operatorRouteGroupFilter))
+                  .filter(op => {
+                    if (!operatorSearchQuery) return true;
+                    const q = operatorSearchQuery.toLowerCase();
+                    return op.name.toLowerCase().includes(q) || 
+                           op.slogan.toLowerCase().includes(q) || 
+                           op.description.toLowerCase().includes(q);
+                  })
+                  .map((op) => {
+                    // Get routes belonging to this operator
+                    const opRoutes = activeRoutes.filter(r => r.operatorId === op.id);
+                    
+                    // Further filter routes if user typed a search query matching a city
+                    const matchedRoutes = opRoutes.filter(r => {
+                      if (!operatorSearchQuery) return true;
+                      const q = operatorSearchQuery.toLowerCase();
+                      return r.departureCity.toLowerCase().includes(q) || 
+                             r.destinationCity.toLowerCase().includes(q) ||
+                             r.serviceType.toLowerCase().includes(q);
+                    });
 
-                  <h3 className="text-xs font-black uppercase tracking-wider text-[#062A73] border-b border-gray-100 pb-2">
-                    Available Departure Timetables:
-                  </h3>
+                    // If a search query is active, only show the operator card if either the operator matches or they have matching routes!
+                    const hasMatchingRoutes = matchedRoutes.length > 0;
+                    const opMatchesName = op.name.toLowerCase().includes(operatorSearchQuery.toLowerCase());
+                    if (operatorSearchQuery && !opMatchesName && !hasMatchingRoutes) {
+                      return null;
+                    }
 
-                  <div className="space-y-3">
-                    {filteredRoutes.length > 0 ? (
-                      filteredRoutes.map((route) => (
-                        <div key={route.id} className="border border-gray-100 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-gray-200 transition-all">
-                          <div className="space-y-1">
-                            <span className="text-[9px] uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-[#062A73]/15 text-[#062A73]">
-                              {route.serviceType}
-                            </span>
-                            <h4 className="text-sm font-bold text-navy flex items-center gap-1.5">
-                              <span>{route.departureCity}</span>
-                              <ArrowRight className="h-3.5 w-3.5 text-[#FF5A1F]" />
-                              <span>{route.destinationCity}</span>
-                            </h4>
-                            <div className="flex items-center gap-3 text-[10px] text-gray-500">
-                              <span>Departure: {route.departureTime}</span>
-                              <span>&bull;</span>
-                              <span>Pickup: {route.pickupLocation.split(',')[0]}</span>
-                            </div>
+                    const routesToDisplay = operatorSearchQuery ? matchedRoutes : opRoutes;
+
+                    return (
+                      <div key={op.id} className="bg-white border border-gray-150 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
+                        {/* Operator Banner Header */}
+                        <div className="p-6 text-white relative bg-[#0b1d3a] flex flex-col justify-end min-h-[110px]" style={{ borderLeft: `6px solid #cca43b` }}>
+                          <div className="absolute top-4 right-4 bg-emerald-600 text-white px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest flex items-center gap-1 shadow-sm">
+                            <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping"></span>
+                            <span>Fully Integrated</span>
                           </div>
-                          <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-3 sm:pt-0 border-gray-50">
-                            <div>
-                              <span className="text-[10px] text-gray-400 block text-left sm:text-right">Standard Cabin</span>
-                              <span className="text-sm font-black text-[#062A73]">MK{route.fareStandard.toLocaleString()}</span>
-                            </div>
-                            <button
-                              onClick={() => handleSelectRouteFromSchedule(route)}
-                              className="bg-[#FF5A1F] hover:bg-[#e04f1a] text-white px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
-                            >
-                              Book Seat
-                            </button>
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-2xl">{op.logo}</span>
+                            <h2 className="serif text-2xl font-black">{op.name}</h2>
+                          </div>
+                          <p className="text-xs text-white/80 italic mt-1">{op.slogan}</p>
+                        </div>
+
+                        {/* Profile Body */}
+                        <div className="p-6 space-y-4">
+                          <p className="text-xs text-gray-600 leading-relaxed">
+                            {op.description}
+                          </p>
+
+                          <h3 className="text-xs font-black uppercase tracking-wider text-[#062A73] border-b border-gray-100 pb-2 flex items-center gap-1.5">
+                            <Bus className="h-4 w-4 text-gold" />
+                            <span>Active Departure Timetables ({routesToDisplay.length}):</span>
+                          </h3>
+
+                          <div className="space-y-3">
+                            {routesToDisplay.length > 0 ? (
+                              routesToDisplay.map((route) => (
+                                <div key={route.id} className="border border-gray-100 bg-[#faf7f2]/40 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-gold/30 hover:bg-[#faf7f2]/90 transition-all duration-300">
+                                  <div className="space-y-1">
+                                    <span className="text-[9px] uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-[#062A73]/10 text-[#062A73]">
+                                      {route.serviceType}
+                                    </span>
+                                    <h4 className="text-sm font-bold text-navy flex items-center gap-1.5">
+                                      <span>{route.departureCity}</span>
+                                      <ArrowRight className="h-3.5 w-3.5 text-[#FF5A1F]" />
+                                      <span>{route.destinationCity}</span>
+                                    </h4>
+                                    <div className="flex items-center gap-3 text-[10px] text-gray-500">
+                                      <span>Departure: <strong>{route.departureTime}</strong></span>
+                                      <span>&bull;</span>
+                                      <span>Duration: {route.duration}</span>
+                                      <span>&bull;</span>
+                                      <span>Pickup: {route.pickupLocation.split(',')[0]}</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-3 sm:pt-0 border-gray-50">
+                                    <div className="text-left sm:text-right">
+                                      <span className="text-[10px] text-gray-400 block">Seat Fares from</span>
+                                      <span className="text-sm font-black text-[#062A73]">MK {route.fareStandard.toLocaleString()}</span>
+                                    </div>
+                                    <button
+                                      onClick={() => handleSelectRouteFromSchedule(route)}
+                                      className="bg-[#FF5A1F] hover:bg-[#0b1d3a] text-white px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer shadow-sm shadow-[#FF5A1F]/10"
+                                    >
+                                      Book Seat
+                                    </button>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="text-center py-8 border border-dashed border-gray-150 rounded-xl bg-gray-50/50">
+                                <AlertCircle className="h-6 w-6 text-gray-400 mx-auto mb-1.5" />
+                                <p className="text-xs text-gray-500 font-semibold">
+                                  No schedules currently listed for this operator
+                                </p>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-8 border border-dashed border-gray-150 rounded-xl">
-                        <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                        <p className="text-xs text-gray-500 font-bold">
-                          {language === 'en' ? 'No timetables match your search query' : 'Palibe ndondomeko yogwirizana ndi fufuzidwe yanu'}
-                        </p>
-                        <button
-                          onClick={() => setOperatorSearchQuery('')}
-                          className="text-xs text-[#FF5A1F] font-bold mt-1.5 underline cursor-pointer"
-                        >
-                          {language === 'en' ? 'Reset search filter' : 'Bwererani pambuyo'}
-                        </button>
                       </div>
-                    )}
-                  </div>
-                </div>
+                    );
+                  })}
               </div>
-            )}
 
-            {/* Coming Soon Operators Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {OPERATORS_LIST.filter(op => operatorRouteGroupFilter === 'All' || op.routeGroups.includes(operatorRouteGroupFilter)).some(op => op.id === 'axa') && (
-                <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 opacity-75">
-                  <span className="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-gray-200 text-gray-500 inline-block mb-3">Coming Soon</span>
-                  <h3 className="text-base font-black text-gray-500">AXA Coaches</h3>
-                  <p className="text-xs text-gray-400 mt-2">Integrating premium intercity schedules between Blantyre and Mzuzu in Phase 2 launch.</p>
-                  <span className="text-[9px] text-[#FF5A1F] uppercase tracking-wider font-bold block mt-3">Route Group: Lakeshore</span>
+              {OPERATORS_LIST.filter(op => operatorRouteGroupFilter === 'All' || op.routeGroups.includes(operatorRouteGroupFilter)).length === 0 && (
+                <div className="text-center py-12 bg-white border border-dashed border-gray-150 rounded-2xl">
+                  <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-xs text-gray-500 font-bold">
+                    No operators found matching the selected route group
+                  </p>
+                  <button
+                    onClick={() => setOperatorRouteGroupFilter('All')}
+                    className="text-xs text-[#FF5A1F] font-bold mt-1.5 underline cursor-pointer"
+                  >
+                    Clear route group filter
+                  </button>
                 </div>
               )}
-              {OPERATORS_LIST.filter(op => operatorRouteGroupFilter === 'All' || op.routeGroups.includes(operatorRouteGroupFilter)).some(op => op.id === 'kwezy') && (
-                <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 opacity-75">
-                  <span className="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-gray-200 text-gray-500 inline-block mb-3">Coming Soon</span>
-                  <h3 className="text-base font-black text-gray-500">Kwezy Bus Services</h3>
-                  <p className="text-xs text-gray-400 mt-2">Integrating modern business class runs between Lilongwe and Mzuzu in upcoming updates.</p>
-                  <span className="text-[9px] text-[#FF5A1F] uppercase tracking-wider font-bold block mt-3">Route Group: M1 Route</span>
-                </div>
-              )}
-            </div>
-
-            {OPERATORS_LIST.filter(op => operatorRouteGroupFilter === 'All' || op.routeGroups.includes(operatorRouteGroupFilter)).length === 0 && (
-              <div className="text-center py-12 bg-white border border-dashed border-gray-150 rounded-2xl">
-                <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-xs text-gray-500 font-bold">
-                  No operators found matching the selected route group
-                </p>
-                <button
-                  onClick={() => setOperatorRouteGroupFilter('All')}
-                  className="text-xs text-[#FF5A1F] font-bold mt-1.5 underline cursor-pointer"
-                >
-                  Clear route group filter
-                </button>
-              </div>
-            )}
-          </div>
-        </motion.div>
+            </motion.div>
           )}
 
           {currentView === 'profile' && (

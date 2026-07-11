@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  X, Mail, Lock, User, AlertCircle, CheckCircle2, Loader2, ArrowRight, Eye, EyeOff 
+  X, Mail, Lock, User, AlertCircle, CheckCircle2, Loader2, ArrowRight, Eye, EyeOff, Building2 
 } from 'lucide-react';
 import { 
   signInWithEmailAndPassword, 
@@ -11,6 +11,9 @@ import {
   signInWithPopup
 } from 'firebase/auth';
 import { auth } from '../firebase';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase';
+import { OPERATORS } from '../data';
 import { motion } from 'motion/react';
 import YavaLogo from './YavaLogo';
 
@@ -31,6 +34,10 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  // Multi-operator states
+  const [signupRole, setSignupRole] = useState<'customer' | 'operator_admin'>('customer');
+  const [selectedOperatorId, setSelectedOperatorId] = useState('op-starlink');
 
   if (!isOpen) return null;
 
@@ -41,6 +48,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
     setName('');
     setError('');
     setSuccess('');
+    setSignupRole('customer');
+    setSelectedOperatorId('op-starlink');
   };
 
   const handleModeChange = (newMode: 'login' | 'signup' | 'forgot') => {
@@ -55,7 +64,22 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const userCredential = await signInWithPopup(auth, provider);
+      
+      // Save profile to Firestore if it does not exist
+      const userId = userCredential.user.uid;
+      const userDocRef = doc(db, 'users', userId);
+      const docSnap = await getDoc(userDocRef);
+      if (!docSnap.exists()) {
+        await setDoc(userDocRef, {
+          id: userId,
+          email: userCredential.user.email,
+          fullName: userCredential.user.displayName || 'Google User',
+          role: 'customer',
+          createdAt: new Date().toISOString()
+        });
+      }
+
       setSuccess('Successfully signed in with Google!');
       setTimeout(() => {
         onClose();
@@ -126,6 +150,19 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
         await updateProfile(userCredential.user, {
           displayName: name
         });
+
+        // Save custom profile to Firestore
+        const userId = userCredential.user.uid;
+        const userDocRef = doc(db, 'users', userId);
+        await setDoc(userDocRef, {
+          id: userId,
+          email,
+          fullName: name,
+          role: signupRole,
+          operatorId: signupRole === 'operator_admin' ? selectedOperatorId : null,
+          createdAt: new Date().toISOString()
+        });
+
         setSuccess('Account created successfully!');
         setTimeout(() => {
           onClose();
@@ -217,22 +254,76 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
 
           {/* Full Name (Sign Up only) */}
           {mode === 'signup' && (
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
-                Full Name
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. John Phiri"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-slate-50 border border-gray-200 focus:border-[#FF5A1F] focus:bg-white px-4 py-3 pl-10 text-xs text-gray-800 rounded-xl outline-none transition-all"
-                />
-                <User className="absolute left-3.5 top-3.5 h-4 w-4 text-gray-400" />
+            <>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
+                  Full Name
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. John Phiri"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full bg-slate-50 border border-gray-200 focus:border-[#FF5A1F] focus:bg-white px-4 py-3 pl-10 text-xs text-gray-800 rounded-xl outline-none transition-all"
+                  />
+                  <User className="absolute left-3.5 top-3.5 h-4 w-4 text-gray-400" />
+                </div>
               </div>
-            </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
+                  Account Type
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSignupRole('customer')}
+                    className={`py-2 px-3 border rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                      signupRole === 'customer'
+                        ? 'bg-[#0B2E6D] text-white border-[#0B2E6D]'
+                        : 'bg-slate-50 text-gray-500 border-gray-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    Passenger
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSignupRole('operator_admin')}
+                    className={`py-2 px-3 border rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                      signupRole === 'operator_admin'
+                        ? 'bg-[#FF5A1F] text-white border-[#FF5A1F]'
+                        : 'bg-slate-50 text-gray-500 border-gray-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    Operator Staff
+                  </button>
+                </div>
+              </div>
+
+              {signupRole === 'operator_admin' && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
+                    Select Bus Operator / Company
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={selectedOperatorId}
+                      onChange={(e) => setSelectedOperatorId(e.target.value)}
+                      className="w-full bg-slate-50 border border-gray-200 focus:border-[#FF5A1F] focus:bg-white px-4 py-3 pl-10 text-xs text-gray-800 rounded-xl outline-none transition-all appearance-none cursor-pointer font-semibold"
+                    >
+                      {OPERATORS.map((op) => (
+                        <option key={op.id} value={op.id}>
+                          {op.name}
+                        </option>
+                      ))}
+                    </select>
+                    <Building2 className="absolute left-3.5 top-3.5 h-4 w-4 text-gray-400" />
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {/* Email */}
