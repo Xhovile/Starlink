@@ -9,18 +9,22 @@ interface HeroProps {
   onNavigateToSchedule: () => void;
 }
 
+const getLocalDateString = (offsetDays = 0) => {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function Hero({ onNavigateToBooking, onNavigateToSchedule }: HeroProps) {
   const { language, t } = useLanguage();
   
   // Interactive Floating Booking Card States
   const [departure, setDeparture] = useState<'Lilongwe' | 'Blantyre'>('Lilongwe');
   const [destination, setDestination] = useState<'Lilongwe' | 'Blantyre'>('Blantyre');
-  const [travelDate, setTravelDate] = useState<string>(() => {
-    // Tomorrow as default date
-    const tom = new Date();
-    tom.setDate(tom.getDate() + 1);
-    return tom.toISOString().split('T')[0];
-  });
+  const [travelDate, setTravelDate] = useState<string>(() => getLocalDateString(1));
   const [passengers, setPassengers] = useState<number>(1);
   const [showPassengersDropdown, setShowPassengersDropdown] = useState<boolean>(false);
 
@@ -29,7 +33,7 @@ export default function Hero({ onNavigateToBooking, onNavigateToSchedule }: Hero
     if (departure === destination) {
       setDestination(departure === 'Lilongwe' ? 'Blantyre' : 'Lilongwe');
     }
-  }, [departure]);
+  }, [departure, destination]);
 
   const handleSwap = () => {
     const temp = departure;
@@ -50,7 +54,7 @@ export default function Hero({ onNavigateToBooking, onNavigateToSchedule }: Hero
   const formatDisplayDate = (dateStr: string) => {
     if (!dateStr) return 'Select Date';
     try {
-      const date = new Date(dateStr);
+      const date = new Date(dateStr + 'T00:00:00');
       return date.toLocaleDateString(language === 'en' ? 'en-US' : 'en-GB', {
         day: 'numeric',
         month: 'short',
@@ -128,7 +132,8 @@ export default function Hero({ onNavigateToBooking, onNavigateToSchedule }: Hero
                     <button
                       onClick={handleSwap}
                       type="button"
-                      className="absolute right-0 top-1/2 -translate-y-1/2 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-[#062A73] h-8 w-8 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-sm"
+                      aria-label="Swap departure and destination"
+                      className="absolute right-0 top-1/2 -translate-y-1/2 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-[#062A73] h-9 w-9 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-sm active:scale-95"
                       title="Swap cities"
                     >
                       <ArrowLeftRight className="h-3.5 w-3.5" />
@@ -170,9 +175,10 @@ export default function Hero({ onNavigateToBooking, onNavigateToSchedule }: Hero
                 <Calendar className="h-5 w-5 text-[#062A73] group-hover:text-[#FF5A1F] transition-colors" />
                 <input
                   type="date"
-                  min={new Date().toISOString().split('T')[0]}
+                  min={getLocalDateString(0)}
                   value={travelDate}
                   onChange={(e) => setTravelDate(e.target.value)}
+                  aria-label="Select travel date"
                   className="absolute inset-0 opacity-0 cursor-pointer w-full"
                 />
               </div>
@@ -214,6 +220,7 @@ export default function Hero({ onNavigateToBooking, onNavigateToSchedule }: Hero
                             e.stopPropagation();
                             if (passengers > 1) setPassengers(passengers - 1);
                           }}
+                          aria-label="Decrease passengers"
                           className="h-8 w-8 rounded-full border border-gray-200 flex items-center justify-center font-bold text-lg text-gray-600 hover:bg-gray-50 active:scale-95 transition-all cursor-pointer"
                         >
                           -
@@ -224,6 +231,7 @@ export default function Hero({ onNavigateToBooking, onNavigateToSchedule }: Hero
                             e.stopPropagation();
                             if (passengers < 10) setPassengers(passengers + 1);
                           }}
+                          aria-label="Increase passengers"
                           className="h-8 w-8 rounded-full border border-gray-200 flex items-center justify-center font-bold text-lg text-gray-600 hover:bg-gray-50 active:scale-95 transition-all cursor-pointer"
                         >
                           +
